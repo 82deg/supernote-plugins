@@ -17,6 +17,7 @@ describe('picture tag', () => {
 
   it('rejects paths in the original name', () => {
     expect(decodeTag(encodeTag({...tag, o: '../../Note/x.note'}))).toBeNull();
+    expect(decodeTag(encodeTag({...tag, o: '..'}))).toBeNull();
   });
 });
 

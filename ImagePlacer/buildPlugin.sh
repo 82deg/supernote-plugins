@@ -517,14 +517,14 @@ build_android_apk() {
     local android_dir="$project_root/android"
     [[ ! -d "$android_dir" ]] && { write_color_output "android directory not found" "Red"; return 1; }
 
-    write_color_output "Running gradle task: buildCustomApkDebug..." "Blue"
+    write_color_output "Running gradle task: buildCustomApkRelease..." "Blue"
     local gradlew_path="$android_dir/gradlew"
     (cd "$android_dir"
         if [[ -f "$gradlew_path" ]]; then
             chmod +x "$gradlew_path"
-            "$gradlew_path" buildCustomApkDebug
+            "$gradlew_path" buildCustomApkRelease
         elif command -v gradle >/dev/null 2>&1; then
-            gradle buildCustomApkDebug
+            gradle buildCustomApkRelease
         else
             write_color_output "gradle/gradlew not found" "Red"; return 1
         fi
@@ -544,7 +544,8 @@ copy_apk_and_update_config() {
     local build_generated_dir="$2"
     local build_generated_config_file="$3"
 
-    local apk_search="$project_root/android/app/build/outputs/apk"
+    # Workspace patch: ship the shrunk release APK (see android/app/proguard-rules.pro).
+    local apk_search="$project_root/android/app/build/outputs/apk/release"
     local apk_path=""
     if [[ -d "$apk_search" ]]; then
         apk_path="$(find "$apk_search" -type f -name '*custom*.apk' -print -quit 2>/dev/null || true)"

@@ -141,3 +141,12 @@ Run the spike screen (toolbar → Insert Image) in a test note, and fill in each
 - **Stretch handles are still present** and the user wants them gone. Not controllable from a plugin. Check 16 (insertImage) still needs to be run and looked at.
 - **Icons:** rotate left, rotate right and crop glyphs (`tools/make_icons.py`, 4× supersampled, 48 px).
 - **Corner crop marks** were inside the line and looked like overlapping bars. They're now a single right-angle shape centred on the frame line.
+
+## Build 13 log → build 14
+
+- **Rotate takes ~16 s, and ~13.5 s of that is inside Supernote's calls:** read selection 1.3 s, selection render 2.5 s, our rotate 2.5 s, **insertPageElements 7.0 s**, delete 2.1 s, re-lasso 0.6 s. We can't speed up the host calls.
+- **Bug: pictures grew on every edit.** `generateLassoPreview` includes ~5 px of lasso margin (714×1021 picture → 1032×725 after one rotate). Build 14 works on the true picture bounds (`inner`) inside the render, for rotate (via `rotatedRegion`) and crop (via crop `bounds`).
+- **`userData` survives an insert (in session):** read back `imageplacer:{…}`. After reopening the note, still to verify.
+- **Plugin size:** 6.9 MB → **3.2 MB** by shipping the **release** APK with R8 shrinking and `-dontobfuscate` (PluginHost loads `reactPackages` by class name and provides React Native itself), keeping `com.rnfs.**` and `fr.greweb.reactnativeviewshot.**` whole. **Device check needed:** rotate/crop (view-shot) and the file log (RNFS) must still work.
+- **Wording:** progress labels are user terms only ("Rotating the image…", "Cropping the image…", "Opening the image…", "Please wait…").
+- We skip copying rendered files, since the host keeps its own copy.

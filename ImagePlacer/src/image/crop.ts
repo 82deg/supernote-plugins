@@ -14,22 +14,22 @@ export function fullEdges(size: Size): Edges {
 
 /**
  * Move one edge by `delta` source px, keeping at least `minSize` px kept and
- * staying inside the image.
+ * staying inside `bounds` (the usable part of the image, in source px).
  */
-export function moveEdge(edges: Edges, edge: Edge, delta: number, size: Size, minSize = 40): Edges {
+export function moveEdge(edges: Edges, edge: Edge, delta: number, bounds: Edges, minSize = 40): Edges {
   const e = {...edges};
   switch (edge) {
     case 'left':
-      e.left = clamp(edges.left + delta, 0, edges.right - minSize);
+      e.left = clamp(edges.left + delta, bounds.left, edges.right - minSize);
       break;
     case 'right':
-      e.right = clamp(edges.right + delta, edges.left + minSize, size.width);
+      e.right = clamp(edges.right + delta, edges.left + minSize, bounds.right);
       break;
     case 'top':
-      e.top = clamp(edges.top + delta, 0, edges.bottom - minSize);
+      e.top = clamp(edges.top + delta, bounds.top, edges.bottom - minSize);
       break;
     case 'bottom':
-      e.bottom = clamp(edges.bottom + delta, edges.top + minSize, size.height);
+      e.bottom = clamp(edges.bottom + delta, edges.top + minSize, bounds.bottom);
       break;
   }
   return e;
@@ -38,14 +38,16 @@ export function moveEdge(edges: Edges, edge: Edge, delta: number, size: Size, mi
 export type Corner = 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
 
 /** Move a corner: its horizontal edge by `dy`, its vertical edge by `dx`. */
-export function moveCorner(edges: Edges, corner: Corner, dx: number, dy: number, size: Size, minSize = 40): Edges {
+export function moveCorner(edges: Edges, corner: Corner, dx: number, dy: number, bounds: Edges, minSize = 40): Edges {
   const h: Edge = corner === 'topLeft' || corner === 'bottomLeft' ? 'left' : 'right';
   const v: Edge = corner === 'topLeft' || corner === 'topRight' ? 'top' : 'bottom';
-  return moveEdge(moveEdge(edges, h, dx, size, minSize), v, dy, size, minSize);
+  return moveEdge(moveEdge(edges, h, dx, bounds, minSize), v, dy, bounds, minSize);
 }
 
-export function isFull(edges: Edges, size: Size): boolean {
-  return edges.left <= 0 && edges.top <= 0 && edges.right >= size.width && edges.bottom >= size.height;
+export function isFull(edges: Edges, bounds: Edges): boolean {
+  return (
+    edges.left <= bounds.left && edges.top <= bounds.top && edges.right >= bounds.right && edges.bottom >= bounds.bottom
+  );
 }
 
 /**

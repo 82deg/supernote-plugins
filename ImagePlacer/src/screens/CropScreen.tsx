@@ -19,7 +19,9 @@ import {fullEdges, isFull, moveCorner, moveEdge, type Corner, type Edge, type Ed
 interface Props {
   sourcePath: string;
   sourceSize: Size;
-  /** Start from an earlier crop (non-destructive re-crop); default: whole image. */
+  /** The usable part of the image (source px); default: all of it. */
+  bounds?: Edges;
+  /** Start from an earlier crop (non-destructive re-crop); default: `bounds`. */
   initialEdges?: Edges;
   title?: string;
   onDone: (edges: Edges) => void;
@@ -37,13 +39,15 @@ const CORNERS: Corner[] = ['topLeft', 'topRight', 'bottomLeft', 'bottomRight'];
 export default function CropScreen({
   sourcePath,
   sourceSize,
+  bounds: boundsProp,
   initialEdges,
   title,
   onDone,
   onCancel,
 }: Props): React.JSX.Element {
   const [area, setArea] = useState<Size | null>(null);
-  const [edges, setEdges] = useState<Edges>(() => initialEdges ?? fullEdges(sourceSize));
+  const bounds = useMemo(() => boundsProp ?? fullEdges(sourceSize), [boundsProp, sourceSize]);
+  const [edges, setEdges] = useState<Edges>(() => initialEdges ?? bounds);
   const edgesRef = useRef(edges);
   edgesRef.current = edges;
 
@@ -71,12 +75,12 @@ export default function CropScreen({
         },
         onPanResponderMove: (_, g) => {
           const delta = (edge === 'left' || edge === 'right' ? g.dx : g.dy) / (dRef.current || 1);
-          setEdges(moveEdge(start, edge, delta, sourceSize));
+          setEdges(moveEdge(start, edge, delta, bounds));
         },
       });
     };
     return Object.fromEntries(EDGES.map(e => [e, make(e)])) as Record<Edge, PanResponderInstance>;
-  }, [sourceSize]);
+  }, [bounds]);
 
   const cornerResponders = useMemo(() => {
     const make = (corner: Corner): PanResponderInstance => {
@@ -89,12 +93,12 @@ export default function CropScreen({
         },
         onPanResponderMove: (_, g) => {
           const s = dRef.current || 1;
-          setEdges(moveCorner(start, corner, g.dx / s, g.dy / s, sourceSize));
+          setEdges(moveCorner(start, corner, g.dx / s, g.dy / s, bounds));
         },
       });
     };
     return Object.fromEntries(CORNERS.map(c => [c, make(c)])) as Record<Corner, PanResponderInstance>;
-  }, [sourceSize]);
+  }, [bounds]);
 
   const onLayout = (e: LayoutChangeEvent) => {
     const {width, height} = e.nativeEvent.layout;
@@ -114,7 +118,7 @@ export default function CropScreen({
           <Text style={styles.btnText}>Cancel</Text>
         </Pressable>
         <Text style={styles.title}>{title ?? 'Crop'}</Text>
-        <Pressable style={styles.btn} onPress={() => setEdges(fullEdges(sourceSize))}>
+        <Pressable style={styles.btn} onPress={() => setEdges(bounds)}>
           <Text style={styles.btnText}>Full image</Text>
         </Pressable>
         <Pressable style={[styles.btn, styles.primary]} onPress={() => onDone(edges)}>
@@ -122,7 +126,7 @@ export default function CropScreen({
         </Pressable>
       </View>
       <Text style={styles.info}>
-        {Math.round(keptW)} × {Math.round(keptH)} px{isFull(edges, sourceSize) ? ' — drag a bar to crop' : ''}
+        {Math.round(keptW)} × {Math.round(keptH)} px{isFull(edges, bounds) ? ' — drag a bar or corner to crop' : ''}
       </Text>
 
       <View style={styles.area} onLayout={onLayout}>

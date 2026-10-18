@@ -1,4 +1,4 @@
-import {fullCrop, rotateBy, rotatedSize, stageLayout} from '../src/image/transform';
+import {fullCrop, rotateBy, rotatedRegion, rotatedSize, stageLayout} from '../src/image/transform';
 
 const SRC = {width: 4000, height: 3000};
 
@@ -11,6 +11,29 @@ describe('rotation helpers', () => {
   it('wraps rotation both ways', () => {
     expect(rotateBy(270, 90)).toBe(0);
     expect(rotateBy(0, -90)).toBe(270);
+  });
+});
+
+describe('rotatedRegion', () => {
+  // 100×50 image, region = everything except a 5px margin.
+  const src = {width: 100, height: 50};
+  const inner = {left: 5, top: 5, right: 95, bottom: 45};
+
+  it('keeps the margin trimmed for every quarter turn', () => {
+    expect(rotatedRegion(inner, src, 0)).toEqual({x: 5, y: 5, width: 90, height: 40});
+    expect(rotatedRegion(inner, src, 90)).toEqual({x: 5, y: 5, width: 40, height: 90});
+    expect(rotatedRegion(inner, src, 180)).toEqual({x: 5, y: 5, width: 90, height: 40});
+    expect(rotatedRegion(inner, src, 270)).toEqual({x: 5, y: 5, width: 40, height: 90});
+  });
+
+  it('maps an off-centre region correctly at 90°', () => {
+    // Top-left 10×10 corner of the source lands at the top-right after a clockwise turn.
+    expect(rotatedRegion({left: 0, top: 0, right: 10, bottom: 10}, src, 90)).toEqual({
+      x: 40,
+      y: 0,
+      width: 10,
+      height: 10,
+    });
   });
 });
 

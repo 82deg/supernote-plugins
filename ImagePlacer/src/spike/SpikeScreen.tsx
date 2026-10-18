@@ -87,7 +87,7 @@ export default function SpikeScreen(): React.JSX.Element {
     }
     busy.current = true;
     const check = CHECKS.find(c => c.id === id)!;
-    setProgress({from: 0, to: 0.95, label: check.label.replace(/^\d+[a-z]?\.\s*/, '')});
+    setProgress({from: 0, to: 0.95, label: 'Please wait…'});
     setStatus(s => ({...s, [id]: {state: 'running', text: '…'}}));
     log(`▶ ${check.label}`);
     await syncLog(); // on disk + rescanned, so a native crash still leaves this line visible over MTP
@@ -242,6 +242,7 @@ export default function SpikeScreen(): React.JSX.Element {
           <CropScreen
             sourcePath={cropJob.sourcePath}
             sourceSize={cropJob.sourceSize}
+            bounds={cropJob.bounds}
             initialEdges={cropJob.initialEdges}
             title={cropJob.sel.pictureCount > 1 ? `Crop (${cropJob.sel.pictureCount} pictures, merged)` : 'Crop'}
             onDone={finishCrop}

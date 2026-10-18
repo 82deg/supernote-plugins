@@ -12,12 +12,18 @@ export interface PictureTag {
   /** Original size in px. */
   w: number;
   h: number;
+  /** Usable part of the original (excludes the lasso margin), in original px. */
+  b?: Edges;
   /** Current crop edges, in original px. */
   e: Edges;
 }
 
 export function encodeTag(tag: Omit<PictureTag, 'v'>): string {
   return TAG_PREFIX + JSON.stringify({v: 1, ...tag});
+}
+
+function isEdges(e: unknown): e is Edges {
+  return !!e && ['left', 'top', 'right', 'bottom'].every(k => typeof (e as Record<string, unknown>)[k] === 'number');
 }
 
 export function decodeTag(userData: unknown): PictureTag | null {
@@ -30,11 +36,11 @@ export function decodeTag(userData: unknown): PictureTag | null {
       t &&
       t.v === 1 &&
       typeof t.o === 'string' &&
-      /^[\w.-]+$/.test(t.o) && // a bare file name, never a path
+      /^[\w-][\w.-]*$/.test(t.o) && // a bare file name: no path, no leading dot
       t.w > 0 &&
       t.h > 0 &&
-      t.e &&
-      ['left', 'top', 'right', 'bottom'].every(k => typeof t.e[k] === 'number');
+      isEdges(t.e) &&
+      (t.b === undefined || isEdges(t.b));
     return ok ? (t as PictureTag) : null;
   } catch {
     return null;

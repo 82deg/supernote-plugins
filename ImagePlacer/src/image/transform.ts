@@ -38,6 +38,28 @@ export function fullCrop(src: Size, rotation: Rotation): Crop {
 }
 
 /**
+ * Where a region of the source (edges in source px) ends up after rotating
+ * the whole image clockwise by `rotation`, as a crop in rotated space.
+ */
+export function rotatedRegion(
+  region: {left: number; top: number; right: number; bottom: number},
+  src: Size,
+  rotation: Rotation,
+): Crop {
+  const {left: l, top: t, right: r, bottom: b} = region;
+  switch (rotation) {
+    case 90: // (x, y) → (H − y, x)
+      return {x: src.height - b, y: l, width: b - t, height: r - l};
+    case 180: // (x, y) → (W − x, H − y)
+      return {x: src.width - r, y: src.height - b, width: r - l, height: b - t};
+    case 270: // (x, y) → (y, W − x)
+      return {x: t, y: src.width - r, width: b - t, height: r - l};
+    default:
+      return {x: l, y: t, width: r - l, height: b - t};
+  }
+}
+
+/**
  * @param maxSide longest output side in px (e.g. the page's long side), so
  *   large photos are downscaled before they reach the note.
  * @param pixelRatio PixelRatio.get(): dp → px factor of the device.
