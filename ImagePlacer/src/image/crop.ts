@@ -44,6 +44,66 @@ export function moveCorner(edges: Edges, corner: Corner, dx: number, dy: number,
   return moveEdge(moveEdge(edges, h, dx, bounds, minSize), v, dy, bounds, minSize);
 }
 
+/** Drag the whole crop box, keeping its size, inside `bounds`. */
+export function moveBox(edges: Edges, dx: number, dy: number, bounds: Edges): Edges {
+  const w = edges.right - edges.left;
+  const h = edges.bottom - edges.top;
+  const left = clamp(edges.left + dx, bounds.left, bounds.right - w);
+  const top = clamp(edges.top + dy, bounds.top, bounds.bottom - h);
+  return {left, top, right: left + w, bottom: top + h};
+}
+
+/**
+ * The largest box with aspect `ratio` (width / height) inside `bounds`,
+ * centred on `around` as far as the bounds allow.
+ */
+export function fitRatio(ratio: number, bounds: Edges, around: Edges = bounds): Edges {
+  const bw = bounds.right - bounds.left;
+  const bh = bounds.bottom - bounds.top;
+  const w = Math.min(bw, bh * ratio);
+  const h = w / ratio;
+  const cx = (around.left + around.right) / 2;
+  const cy = (around.top + around.bottom) / 2;
+  const left = clamp(cx - w / 2, bounds.left, bounds.right - w);
+  const top = clamp(cy - h / 2, bounds.top, bounds.bottom - h);
+  return {left, top, right: left + w, bottom: top + h};
+}
+
+/**
+ * Corner drag with a locked aspect `ratio`: the opposite corner stays put and
+ * the box keeps its shape, clamped to `bounds` and a minimum size.
+ */
+export function moveCornerLocked(
+  edges: Edges,
+  corner: Corner,
+  dx: number,
+  dy: number,
+  bounds: Edges,
+  ratio: number,
+  minSize = 40,
+): Edges {
+  const right = corner === 'topRight' || corner === 'bottomRight';
+  const bottom = corner === 'bottomLeft' || corner === 'bottomRight';
+  // Anchor: the opposite corner.
+  const ax = right ? edges.left : edges.right;
+  const ay = bottom ? edges.top : edges.bottom;
+  const w0 = edges.right - edges.left;
+  // Follow whichever axis the finger moved further, in width terms.
+  const dw = right ? dx : -dx;
+  const dh = bottom ? dy : -dy;
+  let w = w0 + (Math.abs(dw) >= Math.abs(dh * ratio) ? dw : dh * ratio);
+  const roomW = right ? bounds.right - ax : ax - bounds.left;
+  const roomH = bottom ? bounds.bottom - ay : ay - bounds.top;
+  w = clamp(w, Math.max(minSize, minSize * ratio), Math.min(roomW, roomH * ratio));
+  const h = w / ratio;
+  return {
+    left: right ? ax : ax - w,
+    right: right ? ax + w : ax,
+    top: bottom ? ay : ay - h,
+    bottom: bottom ? ay + h : ay,
+  };
+}
+
 export function isFull(edges: Edges, bounds: Edges): boolean {
   return (
     edges.left <= bounds.left && edges.top <= bounds.top && edges.right >= bounds.right && edges.bottom >= bounds.bottom

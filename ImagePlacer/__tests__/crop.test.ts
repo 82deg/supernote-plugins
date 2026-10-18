@@ -1,4 +1,14 @@
-import {croppedPlacement, fullEdges, isFull, moveCorner, moveEdge, originalPlacement} from '../src/image/crop';
+import {
+  croppedPlacement,
+  fitRatio,
+  fullEdges,
+  isFull,
+  moveBox,
+  moveCorner,
+  moveCornerLocked,
+  moveEdge,
+  originalPlacement,
+} from '../src/image/crop';
 
 const SIZE = {width: 426, height: 614};
 
@@ -36,6 +46,66 @@ describe('bounds', () => {
     const bounds = {left: 5, top: 5, right: 421, bottom: 609};
     expect(moveEdge(bounds, 'left', -50, bounds).left).toBe(5);
     expect(moveCorner(bounds, 'bottomRight', 50, 50, bounds)).toEqual(bounds);
+  });
+});
+
+describe('fitRatio', () => {
+  const b = fullEdges(SIZE); // 426×614, portrait
+
+  it('fits a square across the full width, centred', () => {
+    expect(fitRatio(1, b)).toEqual({left: 0, top: 94, right: 426, bottom: 520});
+  });
+
+  it('fits 16:9 across the width', () => {
+    const r = fitRatio(16 / 9, b);
+    expect(r.right - r.left).toBeCloseTo(426);
+    expect((r.right - r.left) / (r.bottom - r.top)).toBeCloseTo(16 / 9);
+  });
+
+  it('fits 9:16 by height when the image is not tall enough', () => {
+    const r = fitRatio(9 / 16, b);
+    expect(r.bottom - r.top).toBeCloseTo(614);
+    expect((r.right - r.left) / (r.bottom - r.top)).toBeCloseTo(9 / 16);
+  });
+
+  it('stays centred on the current box where possible, inside bounds', () => {
+    const r = fitRatio(1, b, {left: 0, top: 0, right: 100, bottom: 100});
+    expect(r.top).toBe(0); // clamped: can't centre on y=50 with a 426 square
+  });
+});
+
+describe('moveBox', () => {
+  it('moves without resizing and stays inside', () => {
+    const box = {left: 100, top: 100, right: 200, bottom: 200};
+    expect(moveBox(box, 50, -500, fullEdges(SIZE))).toEqual({left: 150, top: 0, right: 250, bottom: 100});
+    expect(moveBox(box, 1000, 0, fullEdges(SIZE)).right).toBe(426);
+  });
+});
+
+describe('moveCornerLocked', () => {
+  const b = fullEdges(SIZE);
+  const sq = {left: 100, top: 100, right: 300, bottom: 300};
+
+  it('keeps the ratio and the opposite corner', () => {
+    const r = moveCornerLocked(sq, 'bottomRight', 50, 10, b, 1);
+    expect(r).toEqual({left: 100, top: 100, right: 350, bottom: 350});
+  });
+
+  it('shrinks from the top-left corner', () => {
+    const r = moveCornerLocked(sq, 'topLeft', 40, 40, b, 1);
+    expect(r).toEqual({left: 140, top: 140, right: 300, bottom: 300});
+  });
+
+  it('stops at the bounds while keeping the ratio', () => {
+    const r = moveCornerLocked(sq, 'bottomRight', 1000, 1000, b, 1);
+    expect(r.right).toBeLessThanOrEqual(426);
+    expect(r.right - r.left).toBeCloseTo(r.bottom - r.top);
+  });
+
+  it('works for wide ratios', () => {
+    const wide = {left: 0, top: 0, right: 160, bottom: 90};
+    const r = moveCornerLocked(wide, 'bottomRight', 32, 0, b, 16 / 9);
+    expect(r).toEqual({left: 0, top: 0, right: 192, bottom: 108});
   });
 });
 
