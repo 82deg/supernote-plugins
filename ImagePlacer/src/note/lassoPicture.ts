@@ -15,6 +15,9 @@ import {decodeTag, encodeTag, type PictureTag} from './pictureTag';
 import {croppedPlacement, originalPlacement, type Edges} from '../image/crop';
 import {fullCrop} from '../image/transform';
 import type {RenderFn} from '../image/RenderStage';
+import type {OnStage} from '../ui/Progress';
+
+const noStage: OnStage = () => {};
 
 const PICTURE = 200; // Element.TYPE_PICTURE
 
@@ -95,13 +98,19 @@ export async function replaceLassoPicture(
   picturePath: string,
   rect: Rect,
   userData = '',
+  onStage: OnStage = noStage,
+  span: [number, number] = [0, 1],
 ): Promise<void> {
+  const [from, to] = span;
+  const mid = from + (to - from) * 0.8; // the insert is most of the wait
+  onStage({from, to: mid, label: 'Placing on page…'});
   const el = await call<any>('createElement', PluginCommAPI.createElement(PICTURE));
   el.pageNum = sel.page;
   el.layerNum = sel.layer;
   el.userData = userData;
   el.picture = {picturePath, rect};
   await call('insertPageElements', PluginCommAPI.insertPageElements([el], sel.page, sel.layer));
+  onStage({from: mid, to, label: 'Finishing…'});
   await call('deleteLassoElements', PluginCommAPI.deleteLassoElements());
   await call('lassoElements', PluginCommAPI.lassoElements(padRect(rect, 4, sel.pageSize)));
   if (userData) {
@@ -112,8 +121,14 @@ export async function replaceLassoPicture(
 }
 
 /** Rotate the lassoed picture(s) a quarter turn, in place. */
-export async function rotateLassoPicture(render: RenderFn, rotation: 90 | 270): Promise<string> {
+export async function rotateLassoPicture(
+  render: RenderFn,
+  rotation: 90 | 270,
+  onStage: OnStage = noStage,
+): Promise<string> {
+  onStage({from: 0, to: 0.2, label: 'Reading picture…'});
   const sel = await readLassoPicture();
+  onStage({from: 0.2, to: 0.35, label: rotation === 90 ? 'Rotating right…' : 'Rotating left…'});
   const out = await render({
     path: sel.sourcePath,
     size: sel.sourceSize,
@@ -125,7 +140,7 @@ export async function rotateLassoPicture(render: RenderFn, rotation: 90 | 270): 
   await RNFS.copyFile(out.path, kept);
   const rect = rotatedRect(sel.rect, sel.pageSize);
   // Rotation starts a fresh picture: any crop history (tag) is dropped.
-  await replaceLassoPicture(sel, kept, rect);
+  await replaceLassoPicture(sel, kept, rect, '', onStage, [0.35, 1]);
   return `${rotation === 90 ? 'right' : 'left'}: ${sel.sourceSize.width}×${sel.sourceSize.height} → ${out.size.width}×${out.size.height} at ${fmt(rect)}`;
 }
 
@@ -141,7 +156,8 @@ export interface CropJob {
   originalName: string;
 }
 
-export async function startCropJob(): Promise<CropJob> {
+export async function startCropJob(onStage: OnStage = noStage): Promise<CropJob> {
+  onStage({from: 0, to: 0.9, label: 'Opening picture…'});
   const sel = await readLassoPicture();
   const dir = await originalsDir();
   const tag: PictureTag | null = decodeTag(sel.userData);
@@ -166,7 +182,13 @@ export async function startCropJob(): Promise<CropJob> {
   return {sel, sourcePath: `${dir}/${name}`, sourceSize: sel.sourceSize, fullPlacement: sel.rect, originalName: name};
 }
 
-export async function finishCropJob(job: CropJob, edges: Edges, render: RenderFn): Promise<string> {
+export async function finishCropJob(
+  job: CropJob,
+  edges: Edges,
+  render: RenderFn,
+  onStage: OnStage = noStage,
+): Promise<string> {
+  onStage({from: 0, to: 0.2, label: 'Cropping…'});
   const width = edges.right - edges.left;
   const height = edges.bottom - edges.top;
   const out = await render({
@@ -181,7 +203,7 @@ export async function finishCropJob(job: CropJob, edges: Edges, render: RenderFn
   const rect = croppedPlacement(job.fullPlacement, job.sourceSize, edges);
   const tag = encodeTag({o: job.originalName, w: job.sourceSize.width, h: job.sourceSize.height, e: edges});
   log(`crop: edges ${fmt(edges)} → ${out.size.width}×${out.size.height} at ${fmt(rect)}`);
-  await replaceLassoPicture(job.sel, kept, rect, tag);
+  await replaceLassoPicture(job.sel, kept, rect, tag, onStage, [0.2, 1]);
   return `cropped to ${Math.round(width)}×${Math.round(height)} at ${fmt(rect)}`;
 }
 

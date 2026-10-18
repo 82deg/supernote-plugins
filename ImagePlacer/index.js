@@ -39,7 +39,7 @@ PluginManager.registerButton(1, ['NOTE'], {
 PluginManager.registerButton(2, ['NOTE'], {
   id: ROTATE_LEFT_BUTTON_ID,
   name: 'Rotate left',
-  icon: Image.resolveAssetSource(require('./assets/icon.png')).uri,
+  icon: Image.resolveAssetSource(require('./assets/icons/rotate_left.png')).uri,
   editDataTypes: [2],
   showType: 1,
 });
@@ -47,7 +47,7 @@ PluginManager.registerButton(2, ['NOTE'], {
 PluginManager.registerButton(2, ['NOTE'], {
   id: ROTATE_RIGHT_BUTTON_ID,
   name: 'Rotate right',
-  icon: Image.resolveAssetSource(require('./assets/icon.png')).uri,
+  icon: Image.resolveAssetSource(require('./assets/icons/rotate_right.png')).uri,
   editDataTypes: [2],
   showType: 1,
 });
@@ -55,7 +55,7 @@ PluginManager.registerButton(2, ['NOTE'], {
 PluginManager.registerButton(2, ['NOTE'], {
   id: CROP_BUTTON_ID,
   name: 'Crop',
-  icon: Image.resolveAssetSource(require('./assets/icon.png')).uri,
+  icon: Image.resolveAssetSource(require('./assets/icons/crop.png')).uri,
   editDataTypes: [2],
   showType: 1,
 });

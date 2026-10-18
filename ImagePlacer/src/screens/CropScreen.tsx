@@ -28,7 +28,8 @@ interface Props {
 
 const BAR_LONG = 64; // dp
 const BAR_SHORT = 14; // dp
-const ARM = 40; // dp, length of each arm of a corner mark
+const ARM = 36; // dp, length of each arm of a corner mark
+const CORNER_STROKE = 8; // dp, thickness of a corner mark (frame line is 3)
 const HIT = 56; // dp touch target around each bar / corner
 const EDGES: Edge[] = ['left', 'top', 'right', 'bottom'];
 const CORNERS: Corner[] = ['topLeft', 'topRight', 'bottomLeft', 'bottomRight'];
@@ -165,28 +166,32 @@ export default function CropScreen({
               const top = corner === 'topLeft' || corner === 'topRight';
               const cx = left ? k.left : k.right;
               const cy = top ? k.top : k.bottom;
-              // Arms point inward from the corner, along the frame.
-              const armX = {
+              // One right angle drawn with two borders of a single box, so the
+              // arms meet cleanly. The stroke is centred on the frame line and
+              // the arms run inward along it.
+              const half = CORNER_STROKE / 2;
+              const mark = {
                 position: 'absolute' as const,
                 width: ARM,
-                height: BAR_SHORT,
-                top: HIT / 2 - (top ? 0 : BAR_SHORT),
-                left: left ? HIT / 2 : HIT / 2 - ARM,
-              };
-              const armY = {
-                position: 'absolute' as const,
-                width: BAR_SHORT,
                 height: ARM,
-                left: HIT / 2 - (left ? 0 : BAR_SHORT),
-                top: top ? HIT / 2 : HIT / 2 - ARM,
+                left: left ? HIT / 2 - half : HIT / 2 - ARM + half,
+                top: top ? HIT / 2 - half : HIT / 2 - ARM + half,
+                borderColor: '#000',
+                borderLeftWidth: left ? CORNER_STROKE : 0,
+                borderRightWidth: left ? 0 : CORNER_STROKE,
+                borderTopWidth: top ? CORNER_STROKE : 0,
+                borderBottomWidth: top ? 0 : CORNER_STROKE,
+                borderTopLeftRadius: left && top ? 4 : 0,
+                borderTopRightRadius: !left && top ? 4 : 0,
+                borderBottomLeftRadius: left && !top ? 4 : 0,
+                borderBottomRightRadius: !left && !top ? 4 : 0,
               };
               return (
                 <View
                   key={corner}
                   {...cornerResponders[corner].panHandlers}
                   style={[styles.hit, {left: cx - HIT / 2, top: cy - HIT / 2}]}>
-                  <View style={[styles.bar, armX]} />
-                  <View style={[styles.bar, armY]} />
+                  <View style={mark} />
                 </View>
               );
             })}

@@ -11,6 +11,7 @@ import {VERSION_CODE, VERSION_NAME} from '../version';
 import RenderStage, {type RenderFn} from '../image/RenderStage';
 import {CROP_BUTTON_ID, ROTATE_LEFT_BUTTON_ID, ROTATE_RIGHT_BUTTON_ID} from '../buttons';
 import CropScreen from '../screens/CropScreen';
+import {ProgressOverlay, type Stage} from '../ui/Progress';
 import type {Edges} from '../image/crop';
 import {finishCropJob, rotateLassoPicture, startCropJob, type CropJob} from '../note/lassoPicture';
 
@@ -40,6 +41,7 @@ export default function SpikeScreen(): React.JSX.Element {
   const [lines, setLines] = useState<string[]>([]);
   const [preview, setPreview] = useState<string | undefined>();
   const [showLog, setShowLog] = useState(false);
+  const [progress, setProgress] = useState<Stage | null>(null);
 
   useEffect(() => subscribeLog(setLines), []);
   useEffect(() => {
@@ -85,6 +87,7 @@ export default function SpikeScreen(): React.JSX.Element {
     }
     busy.current = true;
     const check = CHECKS.find(c => c.id === id)!;
+    setProgress({from: 0, to: 0.95, label: check.label.replace(/^\d+[a-z]?\.\s*/, '')});
     setStatus(s => ({...s, [id]: {state: 'running', text: '…'}}));
     log(`▶ ${check.label}`);
     await syncLog(); // on disk + rescanned, so a native crash still leaves this line visible over MTP
@@ -100,6 +103,7 @@ export default function SpikeScreen(): React.JSX.Element {
       setStatus(s => ({...s, [id]: {state: 'fail', text: msg}}));
     }
     setPreview(ctx.current.previewPath);
+    setProgress(null);
     busy.current = false;
   };
   runRef.current = run;
@@ -108,16 +112,28 @@ export default function SpikeScreen(): React.JSX.Element {
   const setRow = (key: 'rotate' | 'crop', state: Status['state'], text: string) =>
     setStatus(s => ({...s, [key]: {state, text}}));
 
+  // After a successful lasso edit, show 100% briefly and return to the page.
+  const doneAndClose = async () => {
+    setProgress({from: 1, to: 1, label: 'Done'});
+    await syncLog();
+    await new Promise(r => setTimeout(r, 350));
+    setProgress(null);
+    PluginManager.closePluginView();
+  };
+
   const rotate = async (rotation: 90 | 270) => {
     log(`▶ 15. Rotate ${rotation === 90 ? 'right' : 'left'}`);
     await syncLog();
     const t0 = Date.now();
     setRow('rotate', 'running', 'rotating…');
     try {
-      const msg = `${await rotateLassoPicture(ctx.current.render!, rotation)} [${Date.now() - t0}ms]`;
+      const msg = `${await rotateLassoPicture(ctx.current.render!, rotation, setProgress)} [${Date.now() - t0}ms]`;
       log(`✓ rotate: ${msg}`);
-      setRow('rotate', 'ok', `${msg} — close to see it`);
+      setRow('rotate', 'ok', msg);
+      await doneAndClose();
+      return;
     } catch (e) {
+      setProgress(null);
       const msg = `${e instanceof Error ? e.message : String(e)} [${Date.now() - t0}ms]`;
       log(`✗ rotate: ${msg}`);
       setRow('rotate', 'fail', msg);
@@ -130,10 +146,12 @@ export default function SpikeScreen(): React.JSX.Element {
     log('▶ 17. Crop lassoed picture');
     await syncLog();
     try {
-      const job = await startCropJob();
+      const job = await startCropJob(setProgress);
+      setProgress(null);
       setRow('crop', 'running', job.initialEdges ? 're-cropping from the original…' : 'cropping…');
       setCropJob(job);
     } catch (e) {
+      setProgress(null);
       const msg = e instanceof Error ? e.message : String(e);
       log(`✗ crop: ${msg}`);
       setRow('crop', 'fail', msg);
@@ -149,10 +167,13 @@ export default function SpikeScreen(): React.JSX.Element {
     }
     const t0 = Date.now();
     try {
-      const msg = `${await finishCropJob(job, edges, ctx.current.render!)} [${Date.now() - t0}ms]`;
+      const msg = `${await finishCropJob(job, edges, ctx.current.render!, setProgress)} [${Date.now() - t0}ms]`;
       log(`✓ crop: ${msg}`);
-      setRow('crop', 'ok', `${msg} — close to see it`);
+      setRow('crop', 'ok', msg);
+      await doneAndClose();
+      return;
     } catch (e) {
+      setProgress(null);
       const msg = `${e instanceof Error ? e.message : String(e)} [${Date.now() - t0}ms]`;
       log(`✗ crop: ${msg}`);
       setRow('crop', 'fail', msg);
@@ -232,6 +253,8 @@ export default function SpikeScreen(): React.JSX.Element {
           />
         </View>
       ) : null}
+
+      {progress ? <ProgressOverlay stage={progress} /> : null}
     </View>
   );
 }

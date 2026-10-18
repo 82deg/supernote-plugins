@@ -134,3 +134,10 @@ Run the spike screen (toolbar → Insert Image) in a test note, and fill in each
 - **The stretch handles are wanted gone.** Not possible from a plugin. The check 16 (insertImage) answer is still pending.
 - **Non-destructive crop (build 12):** the first crop keeps the selection as `originals/orig-<ms>.png` and tags the new picture's `userData` with `imageplacer:{o,w,h,e}`. A re-crop opens the original with the previous edges, and "Full image" un-crops. Open question: does the host keep `userData` on pictures? It's logged right after the replace ("userData read back"), and should be re-checked after closing and reopening the note.
 - **Log pulls:** pull **once**, after the session. A mid-session pull makes MTP cache the size, which truncates later pulls of the same file.
+
+## Build 12 feedback → build 13
+
+- **Wait times feel slow with no feedback.** Build 13 adds a small staged progress bar (`src/ui/Progress.tsx`). Stages come from the helpers; the bar creeps within a stage, because `insertPageElements` reports no progress. A successful rotate or crop auto-closes the plugin.
+- **Stretch handles are still present** and the user wants them gone. Not controllable from a plugin. Check 16 (insertImage) still needs to be run and looked at.
+- **Icons:** rotate left, rotate right and crop glyphs (`tools/make_icons.py`, 4× supersampled, 48 px).
+- **Corner crop marks** were inside the line and looked like overlapping bars. They're now a single right-angle shape centred on the frame line.
