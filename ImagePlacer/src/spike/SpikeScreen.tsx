@@ -9,12 +9,10 @@ import {FILE_WRITE} from '../sdk';
 import {onButton} from '../pendingButton';
 import {VERSION_CODE, VERSION_NAME} from '../version';
 import RenderStage, {type RenderFn} from '../image/RenderStage';
-import {CROP_BUTTON_ID, ROTATE_BUTTON_ID} from '../buttons';
-import RNFS from 'react-native-fs';
+import {CROP_BUTTON_ID, ROTATE_LEFT_BUTTON_ID, ROTATE_RIGHT_BUTTON_ID} from '../buttons';
 import CropScreen from '../screens/CropScreen';
-import {croppedPlacement, isFull, type Edges} from '../image/crop';
-import {outDir, readLassoPicture, replaceLassoPicture, type LassoPicture} from '../note/lassoPicture';
-import {fmt} from '../log';
+import type {Edges} from '../image/crop';
+import {finishCropJob, rotateLassoPicture, startCropJob, type CropJob} from '../note/lassoPicture';
 
 type Status = {state: 'idle' | 'running' | 'ok' | 'fail'; text: string};
 
@@ -54,14 +52,15 @@ export default function SpikeScreen(): React.JSX.Element {
   }, []);
   const runRef = useRef<(id: string) => Promise<void>>(async () => {});
   const startCropRef = useRef<() => Promise<void>>(async () => {});
-  const [cropJob, setCropJob] = useState<LassoPicture | null>(null);
+  const rotateRef = useRef<(rotation: 90 | 270) => Promise<void>>(async () => {});
+  const [cropJob, setCropJob] = useState<CropJob | null>(null);
   useEffect(
     () =>
       onButton(id => {
         log(`App received button ${id}`);
-        if (id === ROTATE_BUTTON_ID) {
+        if (id === ROTATE_RIGHT_BUTTON_ID || id === ROTATE_LEFT_BUTTON_ID) {
           setShowLog(false);
-          runRef.current('lassoRotate');
+          rotateRef.current(id === ROTATE_RIGHT_BUTTON_ID ? 90 : 270);
         }
         if (id === CROP_BUTTON_ID) {
           setShowLog(false);
@@ -105,21 +104,39 @@ export default function SpikeScreen(): React.JSX.Element {
   };
   runRef.current = run;
 
-  // 17. Crop an already-placed picture (lasso toolbar "Crop").
-  const setCrop = (state: Status['state'], text: string) =>
-    setStatus(s => ({...s, crop: {state, text}}));
+  // 15/17. Rotate or crop an already-placed picture (lasso toolbar buttons).
+  const setRow = (key: 'rotate' | 'crop', state: Status['state'], text: string) =>
+    setStatus(s => ({...s, [key]: {state, text}}));
+
+  const rotate = async (rotation: 90 | 270) => {
+    log(`▶ 15. Rotate ${rotation === 90 ? 'right' : 'left'}`);
+    await syncLog();
+    const t0 = Date.now();
+    setRow('rotate', 'running', 'rotating…');
+    try {
+      const msg = `${await rotateLassoPicture(ctx.current.render!, rotation)} [${Date.now() - t0}ms]`;
+      log(`✓ rotate: ${msg}`);
+      setRow('rotate', 'ok', `${msg} — close to see it`);
+    } catch (e) {
+      const msg = `${e instanceof Error ? e.message : String(e)} [${Date.now() - t0}ms]`;
+      log(`✗ rotate: ${msg}`);
+      setRow('rotate', 'fail', msg);
+    }
+    await syncLog();
+  };
+  rotateRef.current = rotate;
 
   const startCrop = async () => {
     log('▶ 17. Crop lassoed picture');
     await syncLog();
     try {
-      const sel = await readLassoPicture();
-      setCrop('running', `cropping ${sel.sourceSize.width}×${sel.sourceSize.height}…`);
-      setCropJob(sel);
+      const job = await startCropJob();
+      setRow('crop', 'running', job.initialEdges ? 're-cropping from the original…' : 'cropping…');
+      setCropJob(job);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       log(`✗ crop: ${msg}`);
-      setCrop('fail', msg);
+      setRow('crop', 'fail', msg);
     }
   };
   startCropRef.current = startCrop;
@@ -130,35 +147,17 @@ export default function SpikeScreen(): React.JSX.Element {
     if (!job) {
       return;
     }
-    if (isFull(edges, job.sourceSize)) {
-      log('crop: unchanged, nothing to do');
-      setCrop('ok', 'unchanged');
-      return;
-    }
     const t0 = Date.now();
     try {
-      const width = edges.right - edges.left;
-      const height = edges.bottom - edges.top;
-      const out = await ctx.current.render!({
-        path: job.sourcePath,
-        size: job.sourceSize,
-        rotation: 0,
-        crop: {x: edges.left, y: edges.top, width, height},
-        maxSide: Math.max(width, height), // source is page resolution: render 1:1
-      });
-      const kept = `${await outDir()}/crop-${Date.now()}.png`;
-      await RNFS.copyFile(out.path, kept);
-      const rect = croppedPlacement(job.rect, job.sourceSize, edges);
-      log(`crop: edges ${fmt(edges)} → ${out.size.width}×${out.size.height} at ${fmt(rect)}`);
-      await replaceLassoPicture(job, kept, rect);
-      const msg = `cropped to ${Math.round(width)}×${Math.round(height)} at ${fmt(rect)} [${Date.now() - t0}ms] — close and check the page`;
+      const msg = `${await finishCropJob(job, edges, ctx.current.render!)} [${Date.now() - t0}ms]`;
       log(`✓ crop: ${msg}`);
-      setCrop('ok', msg);
+      setRow('crop', 'ok', `${msg} — close to see it`);
     } catch (e) {
       const msg = `${e instanceof Error ? e.message : String(e)} [${Date.now() - t0}ms]`;
       log(`✗ crop: ${msg}`);
-      setCrop('fail', msg);
+      setRow('crop', 'fail', msg);
     }
+    await syncLog();
   };
 
   return (
@@ -182,15 +181,20 @@ export default function SpikeScreen(): React.JSX.Element {
         />
       ) : (
         <ScrollView contentContainerStyle={styles.list}>
-          {status.crop ? (
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>
-                {status.crop.state === 'ok' ? '✓ ' : status.crop.state === 'fail' ? '✗ ' : '… '}
-                17. Crop lassoed picture (lasso toolbar "Crop")
-              </Text>
-              <Text style={styles.rowResult}>{status.crop.text}</Text>
-            </View>
-          ) : null}
+          {([
+            ['rotate', '15. Rotate lassoed picture (lasso toolbar "Rotate left/right")'],
+            ['crop', '17. Crop lassoed picture (lasso toolbar "Crop")'],
+          ] as const).map(([key, label]) =>
+            status[key] ? (
+              <View key={key} style={styles.row}>
+                <Text style={styles.rowLabel}>
+                  {status[key].state === 'ok' ? '✓ ' : status[key].state === 'fail' ? '✗ ' : '… '}
+                  {label}
+                </Text>
+                <Text style={styles.rowResult}>{status[key].text}</Text>
+              </View>
+            ) : null,
+          )}
           {CHECKS.map(c => {
             const st = status[c.id];
             return (
@@ -217,12 +221,13 @@ export default function SpikeScreen(): React.JSX.Element {
           <CropScreen
             sourcePath={cropJob.sourcePath}
             sourceSize={cropJob.sourceSize}
-            title={cropJob.pictureCount > 1 ? `Crop (${cropJob.pictureCount} pictures, merged)` : 'Crop'}
+            initialEdges={cropJob.initialEdges}
+            title={cropJob.sel.pictureCount > 1 ? `Crop (${cropJob.sel.pictureCount} pictures, merged)` : 'Crop'}
             onDone={finishCrop}
             onCancel={() => {
               setCropJob(null);
               log('crop: cancelled');
-              setCrop('ok', 'cancelled');
+              setRow('crop', 'ok', 'cancelled');
             }}
           />
         </View>

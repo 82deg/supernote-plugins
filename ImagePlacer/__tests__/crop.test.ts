@@ -1,4 +1,4 @@
-import {croppedPlacement, fullEdges, isFull, moveEdge} from '../src/image/crop';
+import {croppedPlacement, fullEdges, isFull, moveCorner, moveEdge, originalPlacement} from '../src/image/crop';
 
 const SIZE = {width: 426, height: 614};
 
@@ -19,6 +19,18 @@ describe('moveEdge', () => {
   });
 });
 
+describe('moveCorner', () => {
+  it('moves both edges of a corner', () => {
+    expect(moveCorner(fullEdges(SIZE), 'bottomRight', -26, -14, SIZE)).toEqual({
+      left: 0,
+      top: 0,
+      right: 400,
+      bottom: 600,
+    });
+    expect(moveCorner(fullEdges(SIZE), 'topLeft', 10, 20, SIZE)).toEqual({left: 10, top: 20, right: 426, bottom: 614});
+  });
+});
+
 describe('isFull', () => {
   it('detects an untouched crop', () => {
     expect(isFull(fullEdges(SIZE), SIZE)).toBe(true);
@@ -31,6 +43,13 @@ describe('croppedPlacement', () => {
     const placed = {left: 116, top: 122, right: 542, bottom: 736};
     const edges = {left: 20, top: 100, right: 400, bottom: 500};
     expect(croppedPlacement(placed, SIZE, edges)).toEqual({left: 136, top: 222, right: 516, bottom: 622});
+  });
+
+  it('round-trips through originalPlacement', () => {
+    const placed = {left: 116, top: 122, right: 542, bottom: 736};
+    const edges = {left: 20, top: 100, right: 400, bottom: 500};
+    const cropped = croppedPlacement(placed, SIZE, edges);
+    expect(originalPlacement(cropped, SIZE, edges)).toEqual(placed);
   });
 
   it('scales edges when the placement is scaled', () => {

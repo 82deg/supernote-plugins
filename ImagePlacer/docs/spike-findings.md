@@ -126,3 +126,11 @@ Run the spike screen (toolbar → Insert Image) in a test note, and fill in each
 - **Rotating a placed picture works** via the `generateLassoPreview` fallback. The picture's own file never becomes readable: 5 attempts over 2 s, with both RNFS and `FileUtils`. The preview is at page resolution (426×614 for a 426×614 placement), so 90° turns are lossless at display size. Stacked pictures get merged into one.
 - **Side "stretch" handles** on lasso-selected plugin pictures come from firmware 3.30.45 ("images added via plugins can be scaled non-proportionally"). Plugins can't change the native lasso UI. Build 11 check 16 tests whether `insertImage` pictures behave differently.
 - **Crop on the page frame isn't possible** (native UI). Build 11 adds a lasso **Crop** button that opens an in-plugin crop screen with mid-side bars. It replaces the picture in place, at the same scale (`src/screens/CropScreen.tsx`, `src/image/crop.ts`, `src/note/lassoPicture.ts`).
+
+## On-device results: build 11, and build 12 changes
+
+- **The crop screen works** (mid-side bars, replace in place at the same scale, 6.4 s). Feedback: rounded bars and draggable corner marks; both are in build 12.
+- **Rotate failed again after a crop.** The log was truncated by the MTP size cache (a pull happened mid-session), so the cause is unconfirmed. Build 12 rebuilt rotate on the shared helpers (no file polling) and splits it into **Rotate left** (id 400) and **Rotate right** (id 200).
+- **The stretch handles are wanted gone.** Not possible from a plugin. The check 16 (insertImage) answer is still pending.
+- **Non-destructive crop (build 12):** the first crop keeps the selection as `originals/orig-<ms>.png` and tags the new picture's `userData` with `imageplacer:{o,w,h,e}`. A re-crop opens the original with the previous edges, and "Full image" un-crops. Open question: does the host keep `userData` on pictures? It's logged right after the replace ("userData read back"), and should be re-checked after closing and reopening the note.
+- **Log pulls:** pull **once**, after the session. A mid-session pull makes MTP cache the size, which truncates later pulls of the same file.

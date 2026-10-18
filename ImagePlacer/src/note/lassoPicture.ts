@@ -10,7 +10,11 @@ import {Image} from 'react-native';
 import {PluginCommAPI, PluginFileAPI, PluginManager} from 'sn-plugin-lib';
 import {call} from '../sdk';
 import {log, fmt} from '../log';
-import {padRect, type Rect, type Size} from './geometry';
+import {padRect, rotatedRect, type Rect, type Size} from './geometry';
+import {decodeTag, encodeTag, type PictureTag} from './pictureTag';
+import {croppedPlacement, originalPlacement, type Edges} from '../image/crop';
+import {fullCrop} from '../image/transform';
+import type {RenderFn} from '../image/RenderStage';
 
 const PICTURE = 200; // Element.TYPE_PICTURE
 
@@ -24,15 +28,20 @@ export interface LassoPicture {
   page: number;
   pageSize: Size;
   pictureCount: number;
+  /** userData of the picture, when exactly one is selected. */
+  userData?: string;
 }
 
 export class SelectionError extends Error {}
 
-export async function outDir(): Promise<string> {
-  const dir = `${(await PluginManager.getPluginDirPath()) ?? ''}/out`;
+async function pluginDir(sub: string): Promise<string> {
+  const dir = `${(await PluginManager.getPluginDirPath()) ?? ''}/${sub}`;
   await RNFS.mkdir(dir);
   return dir;
 }
+
+export const outDir = () => pluginDir('out');
+const originalsDir = () => pluginDir('originals');
 
 function imageSize(path: string): Promise<Size> {
   return new Promise((resolve, reject) =>
@@ -59,7 +68,11 @@ export async function readLassoPicture(): Promise<LassoPicture> {
     PluginCommAPI.generateLassoPreview(`${dir}/lasso-${Date.now()}.png`),
   );
   const sourceSize = await imageSize(preview.imagePath);
-  log(`lasso picture: ${pics.length} picture(s), preview ${sourceSize.width}×${sourceSize.height} at ${fmt(preview.rect)}`);
+  const userData = pics.length === 1 ? pics[0].userData : undefined;
+  log(
+    `lasso picture: ${pics.length} picture(s), preview ${sourceSize.width}×${sourceSize.height} at ` +
+      `${fmt(preview.rect)}, userData=${fmt(userData)}`,
+  );
   return {
     sourcePath: preview.imagePath,
     sourceSize,
@@ -68,6 +81,7 @@ export async function readLassoPicture(): Promise<LassoPicture> {
     page,
     pageSize,
     pictureCount: pics.length,
+    userData,
   };
 }
 
@@ -76,12 +90,98 @@ export async function readLassoPicture(): Promise<LassoPicture> {
  * select the new picture. Insert happens first so a failure never loses the
  * original.
  */
-export async function replaceLassoPicture(sel: LassoPicture, picturePath: string, rect: Rect): Promise<void> {
+export async function replaceLassoPicture(
+  sel: LassoPicture,
+  picturePath: string,
+  rect: Rect,
+  userData = '',
+): Promise<void> {
   const el = await call<any>('createElement', PluginCommAPI.createElement(PICTURE));
   el.pageNum = sel.page;
   el.layerNum = sel.layer;
+  el.userData = userData;
   el.picture = {picturePath, rect};
   await call('insertPageElements', PluginCommAPI.insertPageElements([el], sel.page, sel.layer));
   await call('deleteLassoElements', PluginCommAPI.deleteLassoElements());
   await call('lassoElements', PluginCommAPI.lassoElements(padRect(rect, 4, sel.pageSize)));
+  if (userData) {
+    // Spike: does the host keep userData on pictures? Read it straight back.
+    const back = await call<any[]>('getLassoElements', PluginCommAPI.getLassoElements());
+    log(`userData read back: ${fmt(back.map(e => e.userData))}`);
+  }
 }
+
+/** Rotate the lassoed picture(s) a quarter turn, in place. */
+export async function rotateLassoPicture(render: RenderFn, rotation: 90 | 270): Promise<string> {
+  const sel = await readLassoPicture();
+  const out = await render({
+    path: sel.sourcePath,
+    size: sel.sourceSize,
+    rotation,
+    crop: fullCrop(sel.sourceSize, rotation),
+    maxSide: Math.max(sel.sourceSize.width, sel.sourceSize.height), // page resolution: 1:1
+  });
+  const kept = `${await outDir()}/rot-${Date.now()}.png`;
+  await RNFS.copyFile(out.path, kept);
+  const rect = rotatedRect(sel.rect, sel.pageSize);
+  // Rotation starts a fresh picture: any crop history (tag) is dropped.
+  await replaceLassoPicture(sel, kept, rect);
+  return `${rotation === 90 ? 'right' : 'left'}: ${sel.sourceSize.width}×${sel.sourceSize.height} → ${out.size.width}×${out.size.height} at ${fmt(rect)}`;
+}
+
+/** Everything the crop screen needs, plus how to put the result back. */
+export interface CropJob {
+  sel: LassoPicture;
+  /** Image shown in the crop screen: the stored original if we have one, else the selection. */
+  sourcePath: string;
+  sourceSize: Size;
+  initialEdges?: Edges;
+  /** Where the full (uncropped) source sits on the page. */
+  fullPlacement: Rect;
+  originalName: string;
+}
+
+export async function startCropJob(): Promise<CropJob> {
+  const sel = await readLassoPicture();
+  const dir = await originalsDir();
+  const tag: PictureTag | null = decodeTag(sel.userData);
+  if (tag && (await RNFS.exists(`${dir}/${tag.o}`))) {
+    log(`crop: re-crop from original ${tag.o} (${tag.w}×${tag.h}), edges ${fmt(tag.e)}`);
+    const size = {width: tag.w, height: tag.h};
+    return {
+      sel,
+      sourcePath: `${dir}/${tag.o}`,
+      sourceSize: size,
+      initialEdges: tag.e,
+      fullPlacement: originalPlacement(sel.rect, size, tag.e),
+      originalName: tag.o,
+    };
+  }
+  if (tag) {
+    log(`crop: tag found but original ${tag.o} is missing; starting from the picture as shown`);
+  }
+  // First crop: keep the selection as the original.
+  const name = `orig-${Date.now()}.png`;
+  await RNFS.copyFile(sel.sourcePath, `${dir}/${name}`);
+  return {sel, sourcePath: `${dir}/${name}`, sourceSize: sel.sourceSize, fullPlacement: sel.rect, originalName: name};
+}
+
+export async function finishCropJob(job: CropJob, edges: Edges, render: RenderFn): Promise<string> {
+  const width = edges.right - edges.left;
+  const height = edges.bottom - edges.top;
+  const out = await render({
+    path: job.sourcePath,
+    size: job.sourceSize,
+    rotation: 0,
+    crop: {x: edges.left, y: edges.top, width, height},
+    maxSide: Math.max(width, height), // the original is at page resolution: 1:1
+  });
+  const kept = `${await outDir()}/crop-${Date.now()}.png`;
+  await RNFS.copyFile(out.path, kept);
+  const rect = croppedPlacement(job.fullPlacement, job.sourceSize, edges);
+  const tag = encodeTag({o: job.originalName, w: job.sourceSize.width, h: job.sourceSize.height, e: edges});
+  log(`crop: edges ${fmt(edges)} → ${out.size.width}×${out.size.height} at ${fmt(rect)}`);
+  await replaceLassoPicture(job.sel, kept, rect, tag);
+  return `cropped to ${Math.round(width)}×${Math.round(height)} at ${fmt(rect)}`;
+}
+

@@ -14,11 +14,13 @@ import {
   type PanResponderInstance,
 } from 'react-native';
 import type {Size} from '../note/geometry';
-import {fullEdges, isFull, moveEdge, type Edge, type Edges} from '../image/crop';
+import {fullEdges, isFull, moveCorner, moveEdge, type Corner, type Edge, type Edges} from '../image/crop';
 
 interface Props {
   sourcePath: string;
   sourceSize: Size;
+  /** Start from an earlier crop (non-destructive re-crop); default: whole image. */
+  initialEdges?: Edges;
   title?: string;
   onDone: (edges: Edges) => void;
   onCancel: () => void;
@@ -26,12 +28,21 @@ interface Props {
 
 const BAR_LONG = 64; // dp
 const BAR_SHORT = 14; // dp
-const HIT = 56; // dp touch target around each bar
+const ARM = 40; // dp, length of each arm of a corner mark
+const HIT = 56; // dp touch target around each bar / corner
 const EDGES: Edge[] = ['left', 'top', 'right', 'bottom'];
+const CORNERS: Corner[] = ['topLeft', 'topRight', 'bottomLeft', 'bottomRight'];
 
-export default function CropScreen({sourcePath, sourceSize, title, onDone, onCancel}: Props): React.JSX.Element {
+export default function CropScreen({
+  sourcePath,
+  sourceSize,
+  initialEdges,
+  title,
+  onDone,
+  onCancel,
+}: Props): React.JSX.Element {
   const [area, setArea] = useState<Size | null>(null);
-  const [edges, setEdges] = useState<Edges>(() => fullEdges(sourceSize));
+  const [edges, setEdges] = useState<Edges>(() => initialEdges ?? fullEdges(sourceSize));
   const edgesRef = useRef(edges);
   edgesRef.current = edges;
 
@@ -66,6 +77,24 @@ export default function CropScreen({sourcePath, sourceSize, title, onDone, onCan
     return Object.fromEntries(EDGES.map(e => [e, make(e)])) as Record<Edge, PanResponderInstance>;
   }, [sourceSize]);
 
+  const cornerResponders = useMemo(() => {
+    const make = (corner: Corner): PanResponderInstance => {
+      let start: Edges = edgesRef.current;
+      return PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: () => {
+          start = edgesRef.current;
+        },
+        onPanResponderMove: (_, g) => {
+          const s = dRef.current || 1;
+          setEdges(moveCorner(start, corner, g.dx / s, g.dy / s, sourceSize));
+        },
+      });
+    };
+    return Object.fromEntries(CORNERS.map(c => [c, make(c)])) as Record<Corner, PanResponderInstance>;
+  }, [sourceSize]);
+
   const onLayout = (e: LayoutChangeEvent) => {
     const {width, height} = e.nativeEvent.layout;
     setArea({width, height});
@@ -85,7 +114,7 @@ export default function CropScreen({sourcePath, sourceSize, title, onDone, onCan
         </Pressable>
         <Text style={styles.title}>{title ?? 'Crop'}</Text>
         <Pressable style={styles.btn} onPress={() => setEdges(fullEdges(sourceSize))}>
-          <Text style={styles.btnText}>Reset</Text>
+          <Text style={styles.btnText}>Full image</Text>
         </Pressable>
         <Pressable style={[styles.btn, styles.primary]} onPress={() => onDone(edges)}>
           <Text style={[styles.btnText, styles.primaryText]}>Done</Text>
@@ -130,6 +159,37 @@ export default function CropScreen({sourcePath, sourceSize, title, onDone, onCan
                 </View>
               );
             })}
+            {/* L-shaped corner marks: drag to move two sides at once. */}
+            {CORNERS.map(corner => {
+              const left = corner === 'topLeft' || corner === 'bottomLeft';
+              const top = corner === 'topLeft' || corner === 'topRight';
+              const cx = left ? k.left : k.right;
+              const cy = top ? k.top : k.bottom;
+              // Arms point inward from the corner, along the frame.
+              const armX = {
+                position: 'absolute' as const,
+                width: ARM,
+                height: BAR_SHORT,
+                top: HIT / 2 - (top ? 0 : BAR_SHORT),
+                left: left ? HIT / 2 : HIT / 2 - ARM,
+              };
+              const armY = {
+                position: 'absolute' as const,
+                width: BAR_SHORT,
+                height: ARM,
+                left: HIT / 2 - (left ? 0 : BAR_SHORT),
+                top: top ? HIT / 2 : HIT / 2 - ARM,
+              };
+              return (
+                <View
+                  key={corner}
+                  {...cornerResponders[corner].panHandlers}
+                  style={[styles.hit, {left: cx - HIT / 2, top: cy - HIT / 2}]}>
+                  <View style={[styles.bar, armX]} />
+                  <View style={[styles.bar, armY]} />
+                </View>
+              );
+            })}
           </View>
         ) : null}
       </View>
@@ -163,5 +223,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bar: {backgroundColor: '#000', borderWidth: 2, borderColor: '#fff'},
+  bar: {backgroundColor: '#000', borderWidth: 2, borderColor: '#fff', borderRadius: BAR_SHORT / 2},
 });

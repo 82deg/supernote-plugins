@@ -39,6 +39,17 @@ export function roundRect(r: Rect): Rect {
   };
 }
 
+/** The rect of a picture after a quarter turn: same centre, sides swapped, kept on the page. */
+export function rotatedRect(r: Rect, page: Size): Rect {
+  const w = Math.min(r.bottom - r.top, page.width);
+  const h = Math.min(r.right - r.left, page.height);
+  const cx = (r.left + r.right) / 2;
+  const cy = (r.top + r.bottom) / 2;
+  const left = Math.min(Math.max(0, cx - w / 2), page.width - w);
+  const top = Math.min(Math.max(0, cy - h / 2), page.height - h);
+  return roundRect({left, top, right: left + w, bottom: top + h});
+}
+
 /** Grow a rect by `pad` on every side, clamped to the page. */
 export function padRect(r: Rect, pad: number, page: Size): Rect {
   return {

@@ -35,6 +35,15 @@ export function moveEdge(edges: Edges, edge: Edge, delta: number, size: Size, mi
   return e;
 }
 
+export type Corner = 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
+
+/** Move a corner: its horizontal edge by `dy`, its vertical edge by `dx`. */
+export function moveCorner(edges: Edges, corner: Corner, dx: number, dy: number, size: Size, minSize = 40): Edges {
+  const h: Edge = corner === 'topLeft' || corner === 'bottomLeft' ? 'left' : 'right';
+  const v: Edge = corner === 'topLeft' || corner === 'topRight' ? 'top' : 'bottom';
+  return moveEdge(moveEdge(edges, h, dx, size, minSize), v, dy, size, minSize);
+}
+
 export function isFull(edges: Edges, size: Size): boolean {
   return edges.left <= 0 && edges.top <= 0 && edges.right >= size.width && edges.bottom >= size.height;
 }
@@ -52,6 +61,19 @@ export function croppedPlacement(placed: Rect, size: Size, edges: Edges): Rect {
     right: Math.round(placed.left + edges.right * sx),
     bottom: Math.round(placed.top + edges.bottom * sy),
   };
+}
+
+/**
+ * Inverse of croppedPlacement: where the uncropped original would sit, given
+ * the cropped picture's rect and the edges it was cut with. Lets a re-crop
+ * start from the full original (non-destructive crop).
+ */
+export function originalPlacement(cropped: Rect, size: Size, edges: Edges): Rect {
+  const sx = (cropped.right - cropped.left) / (edges.right - edges.left);
+  const sy = (cropped.bottom - cropped.top) / (edges.bottom - edges.top);
+  const left = cropped.left - edges.left * sx;
+  const top = cropped.top - edges.top * sy;
+  return {left, top, right: left + size.width * sx, bottom: top + size.height * sy};
 }
 
 function clamp(v: number, lo: number, hi: number): number {
