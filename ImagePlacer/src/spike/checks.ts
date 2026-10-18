@@ -35,6 +35,33 @@ export interface SpikeContext {
   render?: RenderFn; // provided by the screen's RenderStage
 }
 
+/**
+ * Try to get a file we can read for an already-placed picture: the reported
+ * path directly, the same path after a short wait (in case the host writes it
+ * lazily), then a copy made by the SDK's own FileUtils. Logs every attempt.
+ */
+async function readablePictureSource(picturePath: string, dir: string, i: number): Promise<string | null> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const viaRnfs = await RNFS.exists(picturePath).catch(() => false);
+    const viaSdk = await FileUtils.exists(picturePath).catch(() => false);
+    log(`[${i}] attempt ${attempt}: ${picturePath} rnfs=${viaRnfs} sdk=${viaSdk}`);
+    if (viaRnfs) {
+      return picturePath;
+    }
+    if (viaSdk) {
+      const copy = `${dir}/out/src-${Date.now()}-${i}.png`;
+      const ok = await FileUtils.copyFile(picturePath, copy).catch(e => `error: ${e}`);
+      const copied = await RNFS.exists(copy).catch(() => false);
+      log(`[${i}] FileUtils.copyFile → ${ok}, copy readable=${copied}`);
+      if (copied) {
+        return copy;
+      }
+    }
+    await new Promise(r => setTimeout(r, 300));
+  }
+  return null;
+}
+
 async function insertPicture(ctx: SpikeContext, picturePath: string, rect: Rect): Promise<void> {
   const el = await call<any>('createElement', PluginCommAPI.createElement(PICTURE));
   el.pageNum = need(ctx.page, '2');
@@ -346,12 +373,35 @@ export const CHECKS: Check[] = [
       const dir = (await PluginManager.getPluginDirPath()) ?? '';
       await RNFS.mkdir(`${dir}/out`);
 
+      // 0. Find a readable source for each picture. Build 9: the reported
+      //    picturePath (.data/plugin/<now-ms>.png) does not exist for RNFS.
+      const sources: string[] = [];
+      for (const [i, old] of pics.entries()) {
+        const src = await readablePictureSource(old.picture.picturePath, dir, i);
+        if (!src) {
+          break;
+        }
+        sources.push(src);
+      }
+      if (sources.length < pics.length) {
+        // Fallback: let the host render the whole selection, rotate it as one picture.
+        log('per-picture source unavailable → generateLassoPreview fallback');
+        await flushLog();
+        const preview = await call<{imagePath: string; rect: Rect; rotateDegree: number}>(
+          'generateLassoPreview',
+          PluginCommAPI.generateLassoPreview(`${dir}/out/lasso-${Date.now()}.png`),
+        );
+        const exists = await RNFS.exists(preview.imagePath);
+        log(`preview ${preview.imagePath} exists=${exists} rect=${fmt(preview.rect)} rotate=${preview.rotateDegree}`);
+        pics.splice(0, pics.length, {layerNum: pics[0].layerNum, picture: {picturePath: preview.imagePath, rect: preview.rect}});
+        sources.splice(0, sources.length, preview.imagePath);
+      }
+
       // 1. Render + insert every rotated copy. Originals stay until all succeed.
       const created: Rect[] = [];
       for (const [i, old] of pics.entries()) {
-        const {picturePath, rect} = old.picture as {picturePath: string; rect: Rect};
-        const readable = await RNFS.exists(picturePath).catch(e => `error: ${e}`);
-        log(`[${i}] picturePath ${picturePath} exists=${readable}`);
+        const {rect} = old.picture as {picturePath: string; rect: Rect};
+        const picturePath = sources[i];
         await flushLog();
         const src = await imageSize(picturePath);
         const w = rect.right - rect.left;

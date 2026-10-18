@@ -114,3 +114,9 @@ Run the spike screen (toolbar → Insert Image) in a test note, and fill in each
 - **Rect drift (to verify):** inserted 351,425 → 1053,1447, but the lasso reports 439,552 → 1054,1448: same aspect, about 12% smaller, bottom-right fixed. Was it the host or something else?
 - **Insert speed:** about 3.5 s for a 1224×1783 jpg, compared with about 10 s earlier with a larger source.
 - **Build 9:** check 15 rotates every picture in the lasso, each in place. It refuses mixed selections, because `deleteLassoElements` would also delete strokes.
+
+## On-device results: build 9
+
+- **Native lasso rotate handle:** disabled for pictures. Our Rotate lives in the lasso toolbar's **More** menu and opens the plugin (check 15 auto-runs).
+- **`picturePath` of placed pictures is not readable:** `getLassoElements` reports `/storage/emulated/0/.data/plugin/<now-ms>.png` with a new name on every call (the number is the call time), and RNFS gets ENOENT. Build 10 tries a short wait, then `FileUtils.exists/copyFile`, then falls back to `generateLassoPreview` (the host renders the selection) and rotates that.
+- The test note now has 4 stacked copies of the same picture (repeated check 7 taps).
