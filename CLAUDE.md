@@ -8,7 +8,11 @@ The plugins here are for the Supernote Nomad (firmware Chauvet 3.30.45+). Each p
   - `build.sh <Plugin>`: tsc, jest, version check, then `buildPlugin.sh`. Prints the `.snplg` path.
   - `bump.sh <Plugin>`: increments `versionCode` in both `PluginConfig.json` and `src/version.ts`.
   - `deploy.sh <Plugin>`: `adb push` to `MyStyle/` if ADB is connected; otherwise prints the OpenMTP steps.
-  - `logs.sh`: filtered logcat.
+  - `logs.sh`: filtered logcat. The Nomad doesn't expose ADB so far, so use `mtp.sh` instead.
+  - `mtp.sh detect | push <Plugin> | log <Plugin>`: USB/MTP via libmtp. **Quit OpenMTP first.**
+    - `push` uploads `MyStyle/<Plugin>-b<code>.snplg` (versioned, so the device picker can tell builds apart).
+    - `log` pulls the newest `EXPORT/<Plugin>/log-YYYYMMDD-HHMMSS.txt` (one per plugin session) to `<Plugin>/device-logs/`.
+    - Plugins must never rename/delete in shared folders without `FILE:DELETE` (it fails silently). MTP also caches file sizes, so write a fresh file per session instead of rotating.
 - `_template/`: files copied into every new plugin (logging, SDK helpers, pending-button, version, geometry, e-ink shell UI).
 - `<Plugin>/`: one folder per plugin, e.g. `ImagePlacer/`.
 

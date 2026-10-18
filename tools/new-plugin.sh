@@ -41,7 +41,7 @@ for f in index.js App.tsx README.md src/log.ts; do
 done
 YEAR="$(date +%Y)"
 sed "s/__YEAR__/$YEAR/" "$WORKSPACE/tools/LICENSE.tmpl" > LICENSE
-printf '\n# build logs\nbuild*.log\n' >> .gitignore
+printf '\n# build logs + logs pulled from the device (tools/mtp.sh log)\nbuild*.log\ndevice-logs/\n' >> .gitignore
 
 echo "==> First build (generates PluginConfig.json and pluginID)"
 ./buildPlugin.sh > build.log 2>&1 || { tail -30 build.log; exit 1; }
