@@ -40,6 +40,10 @@ cat >> android/app/proguard-rules.pro <<'RULES'
 -dontobfuscate
 -dontwarn **
 RULES
+# PluginHost runs <Plugin>.bundle from the .snplg: don't embed a 2nd JS copy in the APK (~1 MB).
+perl -0pi -e 's/^react \{\n/react {\n    debuggableVariants = ["debug", "release"]\n/m' android/app/build.gradle
+grep -q 'debuggableVariants = \["debug", "release"\]' android/app/build.gradle \
+    || { echo "debuggableVariants patch did not apply" >&2; exit 1; }
 perl -0pi -e 's/buildCustomApkDebug/buildCustomApkRelease/g; s#    local apk_search="\$project_root/android/app/build/outputs/apk"#    local apk_search="\$project_root/android/app/build/outputs/apk/release"#' buildPlugin.sh
 grep -q 'buildCustomApkRelease' buildPlugin.sh && grep -q 'outputs/apk/release' buildPlugin.sh \
     || { echo "release-build patch did not apply; check upstream buildPlugin.sh" >&2; exit 1; }
