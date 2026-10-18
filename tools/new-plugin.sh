@@ -30,6 +30,20 @@ echo "==> Patching buildPlugin.sh so @react-native-community native modules get 
 perl -0pi -e 's/    \[\[ "\$lower" == \@react-native\* \]\] && return 0\n/    # Workspace patch: community native modules are not provided by PluginHost and\n    # must trigger the native build; only CLI\/tooling packages are ignored.\n    [[ "\$lower" == \@react-native-community\/cli* ]] && return 0\n    [[ "\$lower" == \@react-native\/* ]] && return 0\n    [[ "\$lower" == \@react-native* && "\$lower" != \@react-native-community\/* ]] && return 0\n/' buildPlugin.sh
 grep -q 'Workspace patch' buildPlugin.sh || { echo "buildPlugin.sh patch did not apply; check upstream changes" >&2; exit 1; }
 
+echo "==> Shipping a shrunk release APK instead of debug (ImagePlacer: 6.9 MB → 3.2 MB)"
+sed -i '' 's/^def enableProguardInReleaseBuilds = false/def enableProguardInReleaseBuilds = true/' android/app/build.gradle
+cat >> android/app/proguard-rules.pro <<'RULES'
+
+# Workspace: PluginHost loads native modules by class name (reactPackages in
+# PluginConfig.json) and provides React Native itself. Shrink, never rename.
+# Add a "-keep class <package>.** { *; }" line for every native module you add.
+-dontobfuscate
+-dontwarn **
+RULES
+perl -0pi -e 's/buildCustomApkDebug/buildCustomApkRelease/g; s#    local apk_search="\$project_root/android/app/build/outputs/apk"#    local apk_search="\$project_root/android/app/build/outputs/apk/release"#' buildPlugin.sh
+grep -q 'buildCustomApkRelease' buildPlugin.sh && grep -q 'outputs/apk/release' buildPlugin.sh \
+    || { echo "release-build patch did not apply; check upstream buildPlugin.sh" >&2; exit 1; }
+
 echo "==> Pinning dependencies"
 npm install --save-exact "sn-plugin-lib@$SN_PLUGIN_LIB_VERSION"
 npm install --save-dev --save-exact @types/react@19.0.0

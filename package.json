@@ -1,0 +1,12 @@
+{
+  "name": "supernote-workspace",
+  "private": true,
+  "description": "Build-time tools shared by the Supernote plugins (not shipped in any plugin).",
+  "scripts": {
+    "icons": "node tools/render-icons.mjs"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "2.6.2",
+    "lucide-static": "1.59.0"
+  }
+}

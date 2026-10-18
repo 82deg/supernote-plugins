@@ -13,6 +13,7 @@ The plugins here are for the Supernote Nomad (firmware Chauvet 3.30.45+). Each p
     - `push` uploads `MyStyle/<Plugin>-b<code>.snplg` (versioned, so the device picker can tell builds apart).
     - `log` pulls the newest `EXPORT/<Plugin>/log-YYYYMMDD-HHMMSS.txt` (one per plugin session) to `<Plugin>/device-logs/`.
     - Plugins must never rename/delete in shared folders without `FILE:DELETE` (it fails silently). MTP also caches file sizes, so write a fresh file per session instead of rotating.
+- `tools/render-icons.mjs <outDir> <lucide-name>=<file.png> …`: button icons from **Lucide** (lucide.dev, ISC licence), rendered to 48 px PNGs with stroke 1.75. Supernote needs image files for buttons, so nothing is added to the plugin. Run `npm install` once in the workspace (dev tools only).
 - `_template/`: files copied into every new plugin (logging, SDK helpers, pending-button, version, geometry, e-ink shell UI).
 - `<Plugin>/`: one folder per plugin, e.g. `ImagePlacer/`.
 
@@ -27,6 +28,7 @@ The plugins here are for the Supernote Nomad (firmware Chauvet 3.30.45+). Each p
   - Least privilege: never declare a permission the code doesn't use. Avoid `INTERNET` unless the feature needs it, and disclose it if so.
 - **Files:** prefer the SDK's `FileUtils` (list, copy, SD card via `getExternalDirPath`, `getImageList`) and `RattaFileSelector` (the native Supernote picker) over third-party fs libraries.
 - **Native modules:** `@react-native-community/*` modules are NOT provided by the host. Our patched `buildPlugin.sh` makes them trigger the native build. Upstream ignores every `@react-native*` package, and the plugin then ships without the module. After a build, check that `reactPackages` in the packaged `PluginConfig.json` lists your modules.
+- **Release builds:** plugins ship the **release** APK with R8 shrinking and `-dontobfuscate` (`new-plugin.sh` sets this up). For every native module you add, add `-keep class <its package>.** { *; }` to `android/app/proguard-rules.pro`, then check that its class shows up in the packaged `reactPackages`.
 - **Logging:** keep one log line that isn't gated behind `__DEV__` at startup (`<Name> v<versionName> (<code>) starting`). Builds always use `--dev false`.
 - **Versions:** bump `versionCode` for every build that goes to the device. Install with **Add Plugin → pick the file**; "reinstall" reruns the host's old managed copy in `MyStyle/Plugins/`. **Never change `pluginID`.**
 - **E-ink UI:** black on white, no animations, touch targets of 48dp or more, paging instead of long scrolls, inverted selected state.
