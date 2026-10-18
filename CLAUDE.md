@@ -1,6 +1,6 @@
 # Supernote plugin workspace
 
-The plugins here are for the Supernote Nomad (firmware Chauvet 3.30.45+). Everything lives in **one git repo, `82deg/supernote-plugins`**. Each plugin is a standalone React Native project in its own folder (own `package.json`, `node_modules`, `.gitignore`). This folder holds the shared conventions (this file), the scripts in `tools/` and the starter code in `_template/`.
+Supernote plugins by 82deg, developed on a Supernote Nomad (firmware Chauvet 3.30.45+). Everything lives in **one git repo, `82deg/supernote-plugins`**. Each plugin is a standalone React Native project in its own folder (own `package.json`, `node_modules`, `.gitignore`). This folder holds the shared conventions (this file), the scripts in `tools/` and the starter code in `_template/`.
 
 ## Layout
 - `tools/`: run these from anywhere. They set Node 22, JDK 21 and the Android SDK paths themselves.

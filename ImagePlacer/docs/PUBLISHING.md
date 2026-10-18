@@ -12,12 +12,12 @@ Pick one name and use it everywhere, so people can recognise it:
 
 | Where | What to put |
 |---|---|
-| `PluginConfig.json` → `author` | Your business name, e.g. `82deg` |
-| `LICENSE` copyright line | The same business name, or your legal entity name if it's registered |
+| `PluginConfig.json` → `author` | `82deg` |
+| `LICENSE` copyright line | `82deg` |
 | GitHub | The business account: everything lives in **`github.com/82deg/supernote-plugins`**, one folder per plugin |
 | Reddit post | Posting from your personal account is normal. Say in the post that it's from your business |
 
-> If the business isn't a registered company, the copyright still belongs to you personally. Writing "82deg (82deg)" in `LICENSE` covers both.
+> Decided: **82deg everywhere** (plugin author, licence, commits via GitHub's no-reply address), matching the community norm of handles rather than real names. If the business isn't a registered company, the copyright is still legally yours as the person trading as 82deg.
 
 ## 2. How people give feedback
 
