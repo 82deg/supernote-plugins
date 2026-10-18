@@ -12,7 +12,7 @@ import {
 import {log, fmt, enableFileLog, flushLog} from '../log';
 import RNFS from 'react-native-fs';
 import {call, FILE_READ, FILE_WRITE} from '../sdk';
-import {centeredRect, padRect, type Rect, type Size} from '../note/geometry';
+import {centeredRect, padRect, roundRect, type Rect, type Size} from '../note/geometry';
 import {fullCrop, rotatedSize} from '../image/transform';
 import type {RenderFn} from '../image/RenderStage';
 
@@ -322,6 +322,82 @@ export const CHECKS: Check[] = [
       const r = centeredRect(page, out.size, 0.3);
       await insertPicture(ctx, out.path, {...r, top: r.top + 300, bottom: r.bottom + 300});
       return `${out.size.width}×${out.size.height} jpg; insert took ${Date.now() - t0}ms — cropped? looks ok as jpg?`;
+    },
+  },
+  {
+    id: 'lassoRotate',
+    label: '15. Rotate lassoed picture(s) 90° (lasso toolbar "Rotate")',
+    run: async ctx => {
+      const els = await call<any[]>('getLassoElements', PluginCommAPI.getLassoElements());
+      const pics = els.filter(e => e.type === PICTURE && e.picture);
+      log(`lasso: ${els.length} elements, ${pics.length} pictures: ${fmt(pics.map(p => ({...p.picture, layer: p.layerNum})))}`);
+      if (pics.length === 0) {
+        return 'no picture in the lasso';
+      }
+      // deleteLassoElements removes EVERYTHING selected, so only proceed when
+      // the selection is pictures only; never take strokes/text down with it.
+      if (pics.length !== els.length) {
+        return `lasso has ${els.length - pics.length} non-picture element(s); lasso only pictures`;
+      }
+
+      const notePath = await call<string>('getCurrentFilePath', PluginCommAPI.getCurrentFilePath());
+      const page = await call<number>('getCurrentPageNum', PluginCommAPI.getCurrentPageNum());
+      const pageSize = await call<Size>('getPageSize', PluginFileAPI.getPageSize(notePath, page));
+      const dir = (await PluginManager.getPluginDirPath()) ?? '';
+      await RNFS.mkdir(`${dir}/out`);
+
+      // 1. Render + insert every rotated copy. Originals stay until all succeed.
+      const created: Rect[] = [];
+      for (const [i, old] of pics.entries()) {
+        const {picturePath, rect} = old.picture as {picturePath: string; rect: Rect};
+        const readable = await RNFS.exists(picturePath).catch(e => `error: ${e}`);
+        log(`[${i}] picturePath ${picturePath} exists=${readable}`);
+        await flushLog();
+        const src = await imageSize(picturePath);
+        const w = rect.right - rect.left;
+        const h = rect.bottom - rect.top;
+        log(`[${i}] source ${src.width}×${src.height}, placed ${fmt(rect)}`);
+
+        const out = await need(ctx.render, 'screen')({
+          path: picturePath,
+          size: src,
+          rotation: 90,
+          crop: fullCrop(src, 90),
+          maxSide: Math.max(w, h),
+        });
+        const kept = `${dir}/out/rot-${Date.now()}-${i}.png`;
+        await RNFS.copyFile(out.path, kept);
+
+        // Same centre, sides swapped, kept on the page.
+        const cx = (rect.left + rect.right) / 2;
+        const cy = (rect.top + rect.bottom) / 2;
+        const nw = Math.min(h, pageSize.width);
+        const nh = Math.min(w, pageSize.height);
+        const left = Math.min(Math.max(0, cx - nw / 2), pageSize.width - nw);
+        const top = Math.min(Math.max(0, cy - nh / 2), pageSize.height - nh);
+        const newRect = roundRect({left, top, right: left + nw, bottom: top + nh});
+
+        const el = await call<any>('createElement', PluginCommAPI.createElement(PICTURE));
+        el.pageNum = page;
+        el.layerNum = old.layerNum ?? 0;
+        el.picture = {picturePath: kept, rect: newRect};
+        await call('insertPageElements', PluginCommAPI.insertPageElements([el], page, el.layerNum));
+        log(`[${i}] rotated ${src.width}×${src.height} → ${out.size.width}×${out.size.height} at ${fmt(newRect)}`);
+        created.push(newRect);
+      }
+
+      // 2. Remove the originals (still the current lasso selection).
+      await call('deleteLassoElements', PluginCommAPI.deleteLassoElements());
+
+      // 3. Select the rotated pictures so the user can fine-tune natively.
+      const union = created.reduce((a, r) => ({
+        left: Math.min(a.left, r.left),
+        top: Math.min(a.top, r.top),
+        right: Math.max(a.right, r.right),
+        bottom: Math.max(a.bottom, r.bottom),
+      }));
+      await call('lassoElements', PluginCommAPI.lassoElements(padRect(union, 4, pageSize)));
+      return `rotated ${created.length} picture(s) — did they turn in place?`;
     },
   },
   {

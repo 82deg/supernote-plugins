@@ -105,3 +105,12 @@ Run the spike screen (toolbar → Insert Image) in a test note, and fill in each
 - **The file log works end to end.** `tools/mtp.sh log ImagePlacer` pulled the session log.
 - **SD card (confirmed in the log):** `getAllExternalFilesDirs` gives `/storage/XXXX-XXXX/Android/data/com.ratta.supernote.pluginhost/files`, so the root is `/storage/XXXX-XXXX`. `readDir('/storage')` fails ("length of null array"), so we discover volumes only through `getAllExternalFilesDirs`.
 - **Native rotation of pictures doesn't work:** the lasso's rotate handle is inert for images, which matches the docs (`resizeLassoRect` rotation covers only strokes, shapes and stars). Rotation has to happen in the plugin by re-rendering the pixels (view-shot, proven in 12b).
+
+## On-device results: build 8
+
+- **The note copies inserted images into its own store:** placed pictures report `picturePath` = `/storage/emulated/0/.data/plugin/<epoch-ms>.png`, converted to PNG. The note doesn't depend on our temp files, so the plugin can clean up its `out/` folder freely.
+- **The lasso toolbar button works:** `registerButton(2, ['NOTE'], {editDataTypes:[2]})` appears for pictures and fires id 200. `getLassoElements` returns picture elements with `picture.{picturePath, rect}` and `layerNum`.
+- **Double taps:** check 7 tapped twice inserted two stacked pictures (both in the lasso). The UI must ignore taps while busy; build 9 adds that guard.
+- **Rect drift (to verify):** inserted 351,425 → 1053,1447, but the lasso reports 439,552 → 1054,1448: same aspect, about 12% smaller, bottom-right fixed. Was it the host or something else?
+- **Insert speed:** about 3.5 s for a 1224×1783 jpg, compared with about 10 s earlier with a larger source.
+- **Build 9:** check 15 rotates every picture in the lasso, each in place. It refuses mixed selections, because `deleteLassoElements` would also delete strokes.

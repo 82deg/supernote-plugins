@@ -9,6 +9,7 @@ import {FILE_WRITE} from '../sdk';
 import {onButton} from '../pendingButton';
 import {VERSION_CODE, VERSION_NAME} from '../version';
 import RenderStage, {type RenderFn} from '../image/RenderStage';
+import {ROTATE_BUTTON_ID} from '../buttons';
 
 type Status = {state: 'idle' | 'running' | 'ok' | 'fail'; text: string};
 
@@ -46,13 +47,33 @@ export default function SpikeScreen(): React.JSX.Element {
       }
     });
   }, []);
-  useEffect(() => onButton(id => log(`App received button ${id}`)), []);
+  const runRef = useRef<(id: string) => Promise<void>>(async () => {});
+  useEffect(
+    () =>
+      onButton(id => {
+        log(`App received button ${id}`);
+        if (id === ROTATE_BUTTON_ID) {
+          setShowLog(false);
+          runRef.current('lassoRotate');
+        }
+      }),
+    [],
+  );
 
   const onRenderReady = useCallback((render: RenderFn) => {
     ctx.current.render = render;
   }, []);
 
+  const busy = useRef(false);
+
   const run = async (id: string) => {
+    // E-ink taps are easy to double up while the screen catches up; build 8
+    // inserted two stacked pictures that way. Ignore taps while a check runs.
+    if (busy.current) {
+      log(`(ignored tap on ${id}: a check is still running)`);
+      return;
+    }
+    busy.current = true;
     const check = CHECKS.find(c => c.id === id)!;
     setStatus(s => ({...s, [id]: {state: 'running', text: '…'}}));
     log(`▶ ${check.label}`);
@@ -69,7 +90,9 @@ export default function SpikeScreen(): React.JSX.Element {
       setStatus(s => ({...s, [id]: {state: 'fail', text: msg}}));
     }
     setPreview(ctx.current.previewPath);
+    busy.current = false;
   };
+  runRef.current = run;
 
   return (
     <View style={styles.root}>
