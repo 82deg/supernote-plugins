@@ -120,7 +120,12 @@ is_ignored_module_name() {
     case "$lower" in
         react-native|react|sn-plugin-lib) return 0 ;;
     esac
-    [[ "$lower" == @react-native* ]] && return 0
+    # ImagePlacer: community native modules (e.g. @react-native-community/image-editor)
+    # are not provided by PluginHost and must trigger the native build; only the
+    # CLI/tooling packages under that scope are ignored.
+    [[ "$lower" == @react-native-community/cli* ]] && return 0
+    [[ "$lower" == @react-native/* ]] && return 0
+    [[ "$lower" == @react-native* && "$lower" != @react-native-community/* ]] && return 0
     [[ "$lower" == @react-navigation* ]] && return 0
     return 1
 }

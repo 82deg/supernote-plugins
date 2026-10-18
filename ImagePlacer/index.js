@@ -1,41 +1,39 @@
 /**
+ * Image Placer — plugin entry.
+ *
  * @format
  */
 
 import {AppRegistry, Image} from 'react-native';
 import App from './App';
 import {name as appName} from './app.json';
+import {PluginManager} from 'sn-plugin-lib';
+import {log} from './src/log';
+import {VERSION_NAME, VERSION_CODE} from './src/version';
+import {setPendingButton} from './src/pendingButton';
 
-import { PluginManager } from 'sn-plugin-lib';
+export const INSERT_BUTTON_ID = 100;
+
+// Deliberately ungated: release builds bundle with --dev false, so this is the
+// only way to confirm in logcat which build is actually running.
+log(`ImagePlacer v${VERSION_NAME} (${VERSION_CODE}) starting`);
 
 AppRegistry.registerComponent(appName, () => App);
 
 PluginManager.init();
 
-PluginManager.registerButton(1, ['NOTE', 'DOC'], {
-  id: 100,
-  name: 'Side Button',
-  icon: Image.resolveAssetSource(
-    require('./assets/icon.png'),
-  ).uri,
+PluginManager.registerButton(1, ['NOTE'], {
+  id: INSERT_BUTTON_ID,
+  name: 'Insert Image',
+  icon: Image.resolveAssetSource(require('./assets/icon.png')).uri,
   showType: 1,
 });
 
-PluginManager.registerButton(2, ['NOTE', 'DOC'], {
-  id: 200,
-  name: 'Lasso Button',
-  icon: Image.resolveAssetSource(
-    require('./assets/icon.png'),
-  ).uri,
-  editDataTypes: [0, 1, 2, 3, 4],
-  showType: 1,
-});
-
-PluginManager.registerButton(3, ['NOTE', 'DOC'], {
-  id: 300,
-  name: 'Selection Button',
-  icon: Image.resolveAssetSource(
-    require('./assets/icon.png'),
-  ).uri,
-  showType: 1,
+// Registered here rather than in App so a press that arrives before the
+// component mounts is not lost (pending-button pattern).
+PluginManager.registerButtonListener({
+  onButtonPress: event => {
+    log(`button pressed: id=${event.id}`);
+    setPendingButton(event.id);
+  },
 });

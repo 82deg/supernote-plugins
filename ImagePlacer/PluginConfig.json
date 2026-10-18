@@ -1,0 +1,15 @@
+{
+  "name": "Image Placer",
+  "desc": "Insert PNG/JPG images from your Supernote folders or SD card into the current note. Browse or search, crop, then drag to place. Works fully offline: no network access.",
+  "author": "82deg",
+  "iconPath": "assets/icon.png",
+  "versionName": "0.1.0",
+  "versionCode": "7",
+  "pluginID": "b8a46b121u8svy1x",
+  "pluginKey": "ImagePlacer",
+  "jsMainPath": "index",
+  "uses-permissions": [
+    "plugin.permission.FILE:READ",
+    "plugin.permission.FILE:WRITE"
+  ]
+}
