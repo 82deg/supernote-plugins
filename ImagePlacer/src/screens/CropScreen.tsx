@@ -111,23 +111,34 @@ export default function CropScreen({
   const keptW = edges.right - edges.left;
   const keptH = edges.bottom - edges.top;
 
+  const start = initialEdges ?? bounds;
+  const changed = !sameEdges(edges, start);
+  const canReset = !isFull(edges, bounds);
+
   return (
     <View style={styles.root}>
-      <View style={styles.header}>
-        <Pressable style={styles.btn} onPress={onCancel}>
-          <Text style={styles.btnText}>Cancel</Text>
+      {/* Top bar: dismiss left, title centred, reset right (secondary, text-only). */}
+      <View style={styles.topBar}>
+        <Pressable
+          style={styles.textBtn}
+          onPress={onCancel}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel">
+          <Text style={styles.textBtnLabel}>Cancel</Text>
         </Pressable>
-        <Text style={styles.title}>{title ?? 'Crop'}</Text>
-        <Pressable style={styles.btn} onPress={() => setEdges(bounds)}>
-          <Text style={styles.btnText}>Full image</Text>
-        </Pressable>
-        <Pressable style={[styles.btn, styles.primary]} onPress={() => onDone(edges)}>
-          <Text style={[styles.btnText, styles.primaryText]}>Done</Text>
+        <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
+          {title ?? 'Crop'}
+        </Text>
+        <Pressable
+          style={[styles.textBtn, styles.textBtnRight]}
+          onPress={() => setEdges(bounds)}
+          disabled={!canReset}
+          accessibilityRole="button"
+          accessibilityLabel="Reset to the full image"
+          accessibilityState={{disabled: !canReset}}>
+          <Text style={[styles.textBtnLabel, !canReset && styles.disabledLabel]}>Reset</Text>
         </Pressable>
       </View>
-      <Text style={styles.info}>
-        {Math.round(keptW)} × {Math.round(keptH)} px{isFull(edges, bounds) ? ' — drag a bar or corner to crop' : ''}
-      </Text>
 
       <View style={styles.area} onLayout={onLayout}>
         {d > 0 ? (
@@ -202,27 +213,63 @@ export default function CropScreen({
           </View>
         ) : null}
       </View>
+
+      {/* Footer: one quiet status line, then the single primary action. */}
+      <View style={styles.footer}>
+        <Text style={styles.hint}>
+          {canReset ? `${Math.round(keptW)} × ${Math.round(keptH)}` : 'Drag the edges or corners to crop'}
+        </Text>
+        <Pressable
+          style={[styles.primaryBtn, !changed && styles.primaryBtnDisabled]}
+          onPress={() => onDone(edges)}
+          disabled={!changed}
+          accessibilityRole="button"
+          accessibilityLabel="Apply crop"
+          accessibilityState={{disabled: !changed}}>
+          <Text style={[styles.primaryLabel, !changed && styles.primaryLabelDisabled]}>Apply</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
+function sameEdges(a: Edges, b: Edges): boolean {
+  const near = (x: number, y: number) => Math.abs(x - y) < 0.5;
+  return near(a.left, b.left) && near(a.top, b.top) && near(a.right, b.right) && near(a.bottom, b.bottom);
+}
+
 const styles = StyleSheet.create({
+  // 8-pt spacing; black on white; grey (#8a8a8a) only for disabled/quiet text.
   root: {flex: 1, backgroundColor: '#fff'},
-  header: {
+  topBar: {
+    height: 64,
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 2,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
     borderColor: '#000',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
   },
-  title: {flex: 1, fontSize: 22, fontWeight: 'bold', color: '#000', marginLeft: 16},
-  btn: {borderWidth: 2, borderColor: '#000', paddingHorizontal: 18, paddingVertical: 10, marginLeft: 12},
-  btnText: {fontSize: 20, color: '#000'},
-  primary: {backgroundColor: '#000'},
-  primaryText: {color: '#fff'},
-  info: {fontSize: 18, color: '#000', textAlign: 'center', paddingVertical: 8},
-  area: {flex: 1, alignItems: 'center', justifyContent: 'center', overflow: 'visible'},
+  title: {flex: 1, textAlign: 'center', fontSize: 22, fontWeight: '600', color: '#000'},
+  // Text buttons share a fixed width so the title stays truly centred.
+  textBtn: {width: 112, height: 56, justifyContent: 'center', paddingHorizontal: 16},
+  textBtnRight: {alignItems: 'flex-end'},
+  textBtnLabel: {fontSize: 20, color: '#000'},
+  disabledLabel: {color: '#8a8a8a'},
+  area: {flex: 1, alignItems: 'center', justifyContent: 'center', margin: 24, overflow: 'visible'},
+  footer: {paddingHorizontal: 24, paddingTop: 8, paddingBottom: 24},
+  hint: {fontSize: 17, color: '#555', textAlign: 'center', marginBottom: 16},
+  primaryBtn: {
+    height: 60,
+    borderRadius: 12,
+    backgroundColor: '#000',
+    borderWidth: 2,
+    borderColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryBtnDisabled: {backgroundColor: '#fff', borderColor: '#8a8a8a'},
+  primaryLabel: {fontSize: 21, fontWeight: '600', color: '#fff'},
+  primaryLabelDisabled: {color: '#8a8a8a'},
   shade: {position: 'absolute', backgroundColor: 'rgba(255,255,255,0.7)'},
   frame: {position: 'absolute', borderWidth: 3, borderColor: '#000'},
   hit: {
