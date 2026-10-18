@@ -1,0 +1,5 @@
+# Each plugin is its own git repo; this repo tracks only shared workspace files.
+/*/
+!/tools/
+!/_template/
+.DS_Store
