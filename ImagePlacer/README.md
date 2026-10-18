@@ -1,8 +1,8 @@
 # Image Placer for Supernote
 
-A Supernote plugin that inserts images into your **regular notes**. Browse or search your folders and SD card, crop the image, then drag it into place on the page.
+A Supernote plugin that adds pictures to your **regular notes**. Pick an image with Supernote's own file picker; it lands on the page already selected, so you can move or resize it straight away. Crop it (free, original shape, 1:1, 4:3, 3:4, 16:9, 9:16) or rotate it from the lasso's More menu.
 
-> Status: **pre-release, on-device spike.** The current build is a test bench, not the finished plugin. See [docs/spike-findings.md](docs/spike-findings.md).
+> Status: **pre-release.** Research notes from the on-device spike are in [docs/spike-findings.md](docs/spike-findings.md); the test bench itself is kept at the `spike-final` git tag.
 
 ## Requirements
 

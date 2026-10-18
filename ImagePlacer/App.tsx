@@ -13,22 +13,17 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {PluginManager} from 'sn-plugin-lib';
-import {enableFileLog, log, syncLog} from './src/log';
-import {FILE_WRITE} from './src/sdk';
+import {log} from './src/log';
 import {onButton} from './src/pendingButton';
 import {CROP_BUTTON_ID, INSERT_BUTTON_ID, ROTATE_LEFT_BUTTON_ID, ROTATE_RIGHT_BUTTON_ID} from './src/buttons';
-import {DEBUG_FILE_LOG, DEBUG_SPIKE_SCREEN} from './src/config';
 import RenderStage, {type RenderFn} from './src/image/RenderStage';
 import {ProgressOverlay, type Stage} from './src/ui/Progress';
 import CropScreen from './src/screens/CropScreen';
 import type {Edges} from './src/image/crop';
 import {ensureFileAccess, insertPicture, pickImage} from './src/note/insert';
 import {finishCropJob, rotateLassoPicture, startCropJob, type CropJob} from './src/note/lassoPicture';
-import SpikeScreen from './src/spike/SpikeScreen';
 
-const LOG_DIR = '/storage/emulated/0/EXPORT/ImagePlacer';
-
-function ImagePlacer(): React.JSX.Element {
+function App(): React.JSX.Element {
   const render = useRef<RenderFn | null>(null);
   const busy = useRef(false);
   const [progress, setProgress] = useState<Stage | null>(null);
@@ -38,18 +33,7 @@ function ImagePlacer(): React.JSX.Element {
     render.current = fn;
   }, []);
 
-  useEffect(() => {
-    if (DEBUG_FILE_LOG) {
-      PluginManager.hasPermission(FILE_WRITE).then(has => {
-        if (has === 1) {
-          enableFileLog(LOG_DIR);
-        }
-      });
-    }
-  }, []);
-
   const close = useCallback(async () => {
-    await syncLog();
     setProgress(null);
     setCropJob(null);
     setError(null);
@@ -83,7 +67,6 @@ function ImagePlacer(): React.JSX.Element {
       setError(friendly(msg));
       busy.current = false;
     }
-    await syncLog();
   }, []);
 
   const insert = () =>
@@ -179,10 +162,6 @@ function friendly(msg: string): string {
     return msg; // already written for people
   }
   return 'Something went wrong, so the picture was left as it was. Please try again.';
-}
-
-function App(): React.JSX.Element {
-  return DEBUG_SPIKE_SCREEN ? <SpikeScreen /> : <ImagePlacer />;
 }
 
 const styles = StyleSheet.create({

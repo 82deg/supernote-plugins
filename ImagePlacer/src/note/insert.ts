@@ -11,10 +11,10 @@ import type {OnStage} from '../ui/Progress';
 
 const PICTURE = 200; // Element.TYPE_PICTURE
 const IMAGE_SUFFIXES = ['png', 'jpg', 'jpeg'];
-/** Placed width as a share of the page width. */
-const PLACED_WIDTH = 0.5;
+/** Placed width as a share of the page width (height is capped at 90% of the page). */
+const PLACED_WIDTH = 0.9;
 /** Keep some extra pixels so a later enlargement with the lasso stays sharp. */
-const HEADROOM = 1.5;
+const HEADROOM = 1.25;
 
 export class PermissionError extends Error {}
 
@@ -67,7 +67,10 @@ export async function insertPicture(path: string, render: RenderFn, onStage: OnS
 
   // Big photos make the note slow: hand the note only the pixels it can show.
   let picturePath = path;
-  const maxSide = Math.round(Math.max(rect.right - rect.left, rect.bottom - rect.top) * HEADROOM);
+  // Never more than a full page's worth of pixels: anything beyond is invisible and slows the note.
+  const maxSide = Math.round(
+    Math.min(Math.max(rect.right - rect.left, rect.bottom - rect.top) * HEADROOM, Math.max(pageSize.width, pageSize.height)),
+  );
   if (Math.max(size.width, size.height) > maxSide) {
     onStage({from: 0.15, to: 0.35, label});
     const jpeg = /\.jpe?g$/i.test(path);

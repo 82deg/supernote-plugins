@@ -45,7 +45,6 @@ Keep the "no internet / never changes your files" line. Supernote's reviewers ch
 
 ## 4. Release checklist (in the code)
 
-- [ ] `src/config.ts`: set `DEBUG_FILE_LOG = false` and `DEBUG_SPIKE_SCREEN = false`. Writing log files to `EXPORT` is fine for testing, but it isn't expected behaviour in a release.
 - [ ] Decide the **originals cleanup**. Every first crop keeps the uncropped picture in the plugin's private folder, so you can re-crop later. Add a cap before release (for example, the newest 200 originals, or 50 MB). Those files are private to the plugin, but they add up.
 - [ ] `PluginConfig.json`: name, author, final `desc`, `versionName` 1.0.0. `uses-permissions` stays at exactly FILE:READ and FILE:WRITE.
 - [ ] Bump the version, then build: `tools/bump.sh ImagePlacer 1.0.0` then `tools/build.sh ImagePlacer`. Check the printed config (name, version, permissions, both `reactPackages`).

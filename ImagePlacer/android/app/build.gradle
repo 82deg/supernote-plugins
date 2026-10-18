@@ -116,6 +116,10 @@ def processCustomApk(String buildType) {
  * By default you don't need to apply any configuration, just uncomment the lines you need.
  */
 react {
+    // Workspace: PluginHost runs the separate <Plugin>.bundle from the .snplg, so
+    // don't embed a second copy of the JS bundle in the native package (~1 MB).
+    debuggableVariants = ["debug", "release"]
+
     /* Folders */
     //   The root of your project, i.e. where "package.json" lives. Default is '../..'
     // root = file("../../")

@@ -6,7 +6,6 @@ import React, {useMemo, useRef, useState} from 'react';
 import {
   Image,
   PanResponder,
-  PixelRatio,
   Pressable,
   StyleSheet,
   Text,
@@ -99,15 +98,13 @@ export default function CropScreen({
     setEdges(fitRatio(value, bounds, edgesRef.current));
   };
 
-  // dp per source px: page-actual size (1 page px = 1/PixelRatio dp) when it
-  // fits, else scaled down to fit. Never up-scaled.
+  // dp per source px: zoom the picture to fill the canvas (leaving room for
+  // the handles), so small pictures are big enough to crop precisely.
   const d = useMemo(() => {
     if (!area) {
       return 0;
     }
-    const actual = 1 / PixelRatio.get();
-    const fit = Math.min((area.width - 2 * HIT) / sourceSize.width, (area.height - 2 * HIT) / sourceSize.height);
-    return Math.min(actual, fit);
+    return Math.min((area.width - 2 * HIT) / sourceSize.width, (area.height - 2 * HIT) / sourceSize.height);
   }, [area, sourceSize]);
   const dRef = useRef(d);
   dRef.current = d;

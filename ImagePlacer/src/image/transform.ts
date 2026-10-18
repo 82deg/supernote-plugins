@@ -28,10 +28,6 @@ export function rotatedSize(src: Size, rotation: Rotation): Size {
   return rotation % 180 === 0 ? src : {width: src.height, height: src.width};
 }
 
-export function rotateBy(rotation: Rotation, delta: 90 | -90): Rotation {
-  return (((rotation + delta) % 360) + 360) % 360 as Rotation;
-}
-
 export function fullCrop(src: Size, rotation: Rotation): Crop {
   const r = rotatedSize(src, rotation);
   return {x: 0, y: 0, width: r.width, height: r.height};

@@ -1,4 +1,4 @@
-import {fullCrop, rotateBy, rotatedRegion, rotatedSize, stageLayout} from '../src/image/transform';
+import {fullCrop, rotatedRegion, rotatedSize, stageLayout} from '../src/image/transform';
 
 const SRC = {width: 4000, height: 3000};
 
@@ -8,10 +8,6 @@ describe('rotation helpers', () => {
     expect(rotatedSize(SRC, 180)).toEqual(SRC);
   });
 
-  it('wraps rotation both ways', () => {
-    expect(rotateBy(270, 90)).toBe(0);
-    expect(rotateBy(0, -90)).toBe(270);
-  });
 });
 
 describe('rotatedRegion', () => {

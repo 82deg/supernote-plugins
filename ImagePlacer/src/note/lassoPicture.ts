@@ -11,9 +11,8 @@
 //   pictures-only selections, and always insert the replacement first.
 // - The host copies every inserted image into its own store, so our rendered
 //   files are throwaway.
-import RNFS from 'react-native-fs';
 import {Image} from 'react-native';
-import {PluginCommAPI, PluginFileAPI, PluginManager} from 'sn-plugin-lib';
+import {FileUtils, PluginCommAPI, PluginFileAPI, PluginManager} from 'sn-plugin-lib';
 import {call} from '../sdk';
 import {log, fmt} from '../log';
 import {padRect, rotatedRect, type Rect, type Size} from './geometry';
@@ -48,7 +47,7 @@ export class SelectionError extends Error {}
 
 async function pluginDir(sub: string): Promise<string> {
   const dir = `${(await PluginManager.getPluginDirPath()) ?? ''}/${sub}`;
-  await RNFS.mkdir(dir);
+  await FileUtils.makeDir(dir);
   return dir;
 }
 
@@ -193,7 +192,7 @@ export async function startCropJob(onStage: OnStage = noStage): Promise<CropJob>
   const sel = await readLassoPicture();
   const dir = await originalsDir();
   const tag: PictureTag | null = decodeTag(sel.userData);
-  if (tag && (await RNFS.exists(`${dir}/${tag.o}`))) {
+  if (tag && (await FileUtils.exists(`${dir}/${tag.o}`))) {
     log(`crop: re-crop from original ${tag.o} (${tag.w}×${tag.h}), edges ${fmt(tag.e)}`);
     const size = {width: tag.w, height: tag.h};
     return {
@@ -211,7 +210,9 @@ export async function startCropJob(onStage: OnStage = noStage): Promise<CropJob>
   }
   // First crop: keep the selection render as the original.
   const name = `orig-${Date.now()}.png`;
-  await RNFS.copyFile(sel.sourcePath, `${dir}/${name}`);
+  if (!(await FileUtils.copyFile(sel.sourcePath, `${dir}/${name}`))) {
+    throw new Error(`could not keep the original (${name})`);
+  }
   return {
     sel,
     sourcePath: `${dir}/${name}`,

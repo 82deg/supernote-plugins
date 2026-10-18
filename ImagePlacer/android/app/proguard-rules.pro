@@ -13,7 +13,6 @@
 # in PluginConfig.json) and provides React Native itself at runtime. So:
 # shrink unused code, but never rename anything, and keep our modules whole.
 -dontobfuscate
--keep class com.rnfs.** { *; }
 -keep class fr.greweb.reactnativeviewshot.** { *; }
 -keep class com.imageplacer.** { *; }
 -dontwarn **
