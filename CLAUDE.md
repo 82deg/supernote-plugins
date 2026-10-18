@@ -1,6 +1,6 @@
 # Supernote plugin workspace
 
-The plugins here are for the Supernote Nomad (firmware Chauvet 3.30.45+). Each plugin is a **standalone React Native project and its own git repo** in a subfolder. This folder holds the shared conventions (this file), the scripts in `tools/` and the starter code in `_template/`.
+The plugins here are for the Supernote Nomad (firmware Chauvet 3.30.45+). Everything lives in **one git repo, `82deg/supernote-plugins`**. Each plugin is a standalone React Native project in its own folder (own `package.json`, `node_modules`, `.gitignore`). This folder holds the shared conventions (this file), the scripts in `tools/` and the starter code in `_template/`.
 
 ## Layout
 - `tools/`: run these from anywhere. They set Node 22, JDK 21 and the Android SDK paths themselves.
@@ -41,7 +41,7 @@ The plugins here are for the Supernote Nomad (firmware Chauvet 3.30.45+). Each p
 4. No hardcoded hosts or IPs.
 5. `desc` and `name` in `PluginConfig.json` are accurate and friendly (not the npm slug).
 6. Do an end-to-end install on the device.
-7. Public GitHub repo (MIT) with a README covering permissions and privacy; a release built from a tag with `.snplg` attached; a post in r/Supernote_dev. Check the InkHub submission route at the time, since it isn't documented publicly yet.
+7. Release from the shared repo: tag `<plugin-slug>-v<version>` (e.g. `image-placer-v1.0.0`), a GitHub Release with only that plugin's `.snplg` attached, issues labelled with the plugin slug, and a post in r/Supernote_dev. The plugin's README covers permissions and privacy. Check the InkHub submission route at the time, since it isn't documented publicly yet.
 
 ## Dev environment
 - Node 22 comes from Homebrew `node@22` (keg-only; the tools add it to `PATH`). JDK 21 comes from Homebrew `openjdk@21`. The Android SDK is in `~/Library/Android/sdk` (platform 35, build-tools 35.0.0, NDK 27.0.12077973).

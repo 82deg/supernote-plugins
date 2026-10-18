@@ -1,6 +1,4 @@
-# Each plugin is its own git repo; this repo tracks only shared workspace files.
-/*/
-!/tools/
-!/_template/
+# One repo for all plugins. Each plugin folder has its own .gitignore for its
+# build output (build/, android/.gradle, android/app/build, device-logs/, …).
+node_modules/
 .DS_Store
-!/specs/

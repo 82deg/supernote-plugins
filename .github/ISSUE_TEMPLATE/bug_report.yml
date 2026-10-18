@@ -1,0 +1,31 @@
+name: Bug report
+description: Something in a plugin doesn't work as expected
+labels: [bug]
+body:
+  - type: dropdown
+    id: plugin
+    attributes:
+      label: Which plugin?
+      options:
+        - Image Placer
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you tapped, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and firmware
+      placeholder: e.g. Nomad, Chauvet 3.30.45
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Plugin version
+      placeholder: Settings → Apps → Plugins → the plugin's details

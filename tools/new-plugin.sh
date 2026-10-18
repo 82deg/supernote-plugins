@@ -84,11 +84,10 @@ echo "==> Verifying"
 npx tsc --noEmit
 npx jest --silent
 
-git init -q -b main
-git add -A
-git commit -q -m "Scaffold $NAME from workspace template
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+# One repo for all plugins: commit the new folder in the workspace repo.
+cd "$WORKSPACE"
+git add "$NAME"
+git commit -q -m "Scaffold $NAME from workspace template"
 
 echo
 echo "Created $DIR"

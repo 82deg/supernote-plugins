@@ -14,7 +14,7 @@ Pick one name and use it everywhere, so people can recognise it:
 |---|---|
 | `PluginConfig.json` → `author` | Your business name, e.g. `82deg` |
 | `LICENSE` copyright line | The same business name, or your legal entity name if it's registered |
-| GitHub | A GitHub **organisation** for the business, so the repo lives at `github.com/<business>/image-placer` rather than under your personal account |
+| GitHub | The business account: everything lives in **`github.com/82deg/supernote-plugins`**, one folder per plugin |
 | Reddit post | Posting from your personal account is normal. Say in the post that it's from your business |
 
 > If the business isn't a registered company, the copyright still belongs to you personally. Writing "82deg (82deg)" in `LICENSE` covers both.
@@ -29,7 +29,7 @@ Use **GitHub Issues** as the main channel, because it's public, searchable and f
 
 Use this in the README and the Reddit post:
 
-> **Feedback & bugs:** open an issue at github.com/&lt;business&gt;/image-placer/issues, or reply in the Reddit thread. Please include your device, firmware version, and what you tapped.
+> **Feedback & bugs:** open an issue at github.com/82deg/supernote-plugins/issues (choose "Image Placer"), or reply in the Reddit thread. Please include your device, firmware version, and what you tapped.
 
 ## 3. Title and description
 
@@ -55,7 +55,7 @@ Keep the "no internet / never changes your files" line. Supernote's reviewers ch
   - zero network calls;
   - no hardcoded hosts;
   - the description matches what the plugin does.
-- [ ] Merge `feat/spike` into `main` and tag it: `git tag v1.0.0`.
+- [ ] Commit, then tag the release in the shared repo: `git tag image-placer-v1.0.0` (the plugin prefix keeps releases of different plugins apart).
 
 ## 5. Screenshots and a short demo
 
@@ -66,9 +66,9 @@ Keep the "no internet / never changes your files" line. Supernote's reviewers ch
 
 ## 6. GitHub release
 
-1. Create the organisation (or use your account) and a **public** repo called `image-placer`.
-2. Push `main` and the `v1.0.0` tag.
-3. Create a Release from the tag. Attach `build/outputs/ImagePlacer.snplg`, renamed to `ImagePlacer-1.0.0.snplg`. Paste the changelog into the release notes.
+1. The repo is `82deg/supernote-plugins` (created **private**). On launch day, make it public: Settings → General → Danger Zone → Change visibility. Unfinished plugins should live on branches until they're ready, because the whole repo becomes visible.
+2. Push `main` and the `image-placer-v1.0.0` tag.
+3. Create a Release from the tag, titled **"Image Placer 1.0.0"**. Attach `ImagePlacer/build/outputs/ImagePlacer.snplg`, renamed to `ImagePlacer-1.0.0.snplg`. Paste the changelog into the release notes. Link to it from the plugin table in the root README.
 4. README must-haves (most are already there):
    - what it does, with screenshots;
    - install steps (MyStyle, then Settings → Apps → Plugins → Add Plugin);
@@ -85,12 +85,12 @@ Publishing the source isn't required by Supernote, but it builds trust with user
 1. **Post on r/Supernote_dev.** Use a title like `[Plugin] Image Placer — add, crop & rotate pictures in your notes`. Include:
    - 2–3 screenshots or the video;
    - what it does, in 3 bullets;
-   - a link to the GitHub release;
+   - a link to the GitHub release (and to the `ImagePlacer/` folder for the README);
    - the install steps;
    - permissions and privacy ("offline, never changes your files");
    - the tested firmware;
    - where to give feedback.
-2. **Ask to be added to the plugin list:** comment on, or message the maintainer of, the "List of ALL Available Plugins" post (u/theBlackOddity). Give them the name, a one-line description, the repo, the version, and "permissions-compatible: yes".
+2. **Ask to be added to the plugin list:** comment on, or message the maintainer of, the "List of ALL Available Plugins" post (u/theBlackOddity). Give them the name, a one-line description, the repo link (`github.com/82deg/supernote-plugins/tree/main/ImagePlacer`), the version, and "permissions-compatible: yes".
 3. Optionally cross-post a short version to r/Supernote, for users rather than developers.
 4. Answer early feedback quickly. The first few days set the plugin's reputation.
 

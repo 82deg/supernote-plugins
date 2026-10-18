@@ -1,6 +1,16 @@
 # Supernote plugin workspace
 
-Shared tools, template and conventions for Supernote plugins. Each plugin lives in its own subfolder with its own git repo.
+Supernote plugins by 82deg, plus the shared tools, template and conventions used to build them.
+
+## Plugins
+
+| Plugin | What it does | Latest |
+|---|---|---|
+| [Image Placer](ImagePlacer/) | Add pictures to your notes; crop and rotate them from the lasso menu | not released yet |
+
+Feedback and bugs: [open an issue](../../issues/new/choose) and pick the plugin.
+
+## Developing
 
 ```bash
 tools/new-plugin.sh MyPlugin "My Plugin"   # scaffold
