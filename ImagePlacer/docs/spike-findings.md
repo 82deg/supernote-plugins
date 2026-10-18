@@ -120,3 +120,9 @@ Run the spike screen (toolbar → Insert Image) in a test note, and fill in each
 - **Native lasso rotate handle:** disabled for pictures. Our Rotate lives in the lasso toolbar's **More** menu and opens the plugin (check 15 auto-runs).
 - **`picturePath` of placed pictures is not readable:** `getLassoElements` reports `/storage/emulated/0/.data/plugin/<now-ms>.png` with a new name on every call (the number is the call time), and RNFS gets ENOENT. Build 10 tries a short wait, then `FileUtils.exists/copyFile`, then falls back to `generateLassoPreview` (the host renders the selection) and rotates that.
 - The test note now has 4 stacked copies of the same picture (repeated check 7 taps).
+
+## On-device results: build 10
+
+- **Rotating a placed picture works** via the `generateLassoPreview` fallback. The picture's own file never becomes readable: 5 attempts over 2 s, with both RNFS and `FileUtils`. The preview is at page resolution (426×614 for a 426×614 placement), so 90° turns are lossless at display size. Stacked pictures get merged into one.
+- **Side "stretch" handles** on lasso-selected plugin pictures come from firmware 3.30.45 ("images added via plugins can be scaled non-proportionally"). Plugins can't change the native lasso UI. Build 11 check 16 tests whether `insertImage` pictures behave differently.
+- **Crop on the page frame isn't possible** (native UI). Build 11 adds a lasso **Crop** button that opens an in-plugin crop screen with mid-side bars. It replaces the picture in place, at the same scale (`src/screens/CropScreen.tsx`, `src/image/crop.ts`, `src/note/lassoPicture.ts`).

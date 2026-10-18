@@ -451,6 +451,26 @@ export const CHECKS: Check[] = [
     },
   },
   {
+    id: 'insertImageHandles',
+    label: '16. insertImage + lasso it (compare handles with a 7-inserted picture)',
+    run: async ctx => {
+      const notePath = need(ctx.notePath, '2');
+      const page = need(ctx.page, '2');
+      await call('insertImage', PluginNoteAPI.insertImage(need(ctx.workPath, '6')));
+      // insertImage doesn't say where it put the picture: find the newest one.
+      const els = await call<any[]>('getElements', PluginFileAPI.getElements(page, notePath));
+      const pics = els.filter(e => e.type === PICTURE && e.picture);
+      log(`page has ${pics.length} pictures; last: ${fmt(pics[pics.length - 1]?.picture)}`);
+      const newest = pics[pics.length - 1];
+      if (!newest) {
+        return 'inserted, but no picture found on the page';
+      }
+      const rect = newest.picture.rect as Rect;
+      await call('lassoElements', PluginCommAPI.lassoElements(padRect(rect, 4, need(ctx.pageSize, '2'))));
+      return `lassoed at ${fmt(rect)} — close the plugin: corner-only handles, or side (stretch) handles too?`;
+    },
+  },
+  {
     id: 'deleteCopy',
     label: '13. Delete our copy (embedded vs referenced test)',
     run: async ctx => {

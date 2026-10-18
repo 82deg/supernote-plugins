@@ -12,7 +12,7 @@ import {log} from './src/log';
 import {VERSION_NAME, VERSION_CODE} from './src/version';
 import {setPendingButton} from './src/pendingButton';
 
-import {INSERT_BUTTON_ID, ROTATE_BUTTON_ID} from './src/buttons';
+import {CROP_BUTTON_ID, INSERT_BUTTON_ID, ROTATE_BUTTON_ID} from './src/buttons';
 
 // Deliberately ungated: release builds bundle with --dev false, so this is the
 // only way to confirm in logcat which build is actually running.
@@ -34,6 +34,14 @@ PluginManager.registerButton(1, ['NOTE'], {
 PluginManager.registerButton(2, ['NOTE'], {
   id: ROTATE_BUTTON_ID,
   name: 'Rotate',
+  icon: Image.resolveAssetSource(require('./assets/icon.png')).uri,
+  editDataTypes: [2],
+  showType: 1,
+});
+
+PluginManager.registerButton(2, ['NOTE'], {
+  id: CROP_BUTTON_ID,
+  name: 'Crop',
   icon: Image.resolveAssetSource(require('./assets/icon.png')).uri,
   editDataTypes: [2],
   showType: 1,
