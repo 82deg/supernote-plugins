@@ -74,6 +74,9 @@ export default function RenderStage({onReady}: {onReady: (render: RenderFn) => v
       style={{width: layout.box.width, height: layout.box.height, overflow: 'hidden', backgroundColor: 'transparent'}}>
       <Image
         source={{uri: `file://${job.path}`}}
+        // Android fades new images in over ~300 ms; capturing during the fade
+        // baked a semi-transparent picture into the note (1.0.0 build 19).
+        fadeDuration={0}
         onLoad={capture}
         onError={e => {
           pending.reject(new Error(`image load failed: ${e.nativeEvent.error}`));
