@@ -45,17 +45,19 @@ Keep the "no internet / never changes your files" line. Supernote's reviewers ch
 
 ## 4. Release checklist (in the code)
 
-- [ ] Decide the **originals cleanup**. Every first crop keeps the uncropped picture in the plugin's private folder, so you can re-crop later. Add a cap before release (for example, the newest 200 originals, or 50 MB). Those files are private to the plugin, but they add up.
-- [ ] `PluginConfig.json`: name, author, final `desc`, `versionName` 1.0.0. `uses-permissions` stays at exactly FILE:READ and FILE:WRITE.
-- [ ] Bump the version, then build: `tools/bump.sh ImagePlacer 1.0.0` then `tools/build.sh ImagePlacer`. Check the printed config (name, version, permissions, both `reactPackages`).
+- [x] **Originals cleanup:** the newest 50 uncropped originals are kept (`src/note/housekeeping.ts`), and temporary renders are cleared at the start of each edit.
+- [x] `PluginConfig.json`: name, author (82deg), final `desc`, `versionName` 1.0.0. `uses-permissions` is exactly FILE:READ and FILE:WRITE.
+- [x] Bump the version, then build: `tools/bump.sh ImagePlacer 1.0.0` then `tools/build.sh ImagePlacer`. Check the printed config (name, version, permissions, and `reactPackages` = the view-shot package).
 - [ ] **Clean-install test on the Nomad:** remove the old plugin first, then use Add Plugin. Go through insert, move/resize, crop (each ratio), re-crop, rotate both ways, and deny the permission once to see the message. Close and reopen the note, then re-crop.
-- [ ] Self-review against Supernote's criteria (see `../CLAUDE.md`):
+- [x] Self-review against Supernote's criteria (see `../CLAUDE.md`):
   - the permissions declared match the ones used;
   - nothing deletes or overwrites user files;
   - zero network calls;
   - no hardcoded hosts;
   - the description matches what the plugin does.
 - [ ] Commit, then tag the release in the shared repo: `git tag image-placer-v1.0.0` (the plugin prefix keeps releases of different plugins apart).
+
+Ready-to-paste texts for the release, Reddit and the list maintainer are in [LAUNCH.md](LAUNCH.md).
 
 ## 5. Screenshots and a short demo
 

@@ -21,6 +21,7 @@ import {croppedPlacement, originalPlacement, type Edges} from '../image/crop';
 import {rotatedRegion} from '../image/transform';
 import type {RenderFn} from '../image/RenderStage';
 import type {OnStage} from '../ui/Progress';
+import {clearRenders, pruneOriginals} from './housekeeping';
 
 const PICTURE = 200; // Element.TYPE_PICTURE
 const noStage: OnStage = () => {};
@@ -83,6 +84,7 @@ export async function readLassoPicture(): Promise<LassoPicture> {
   const pageSize = await call<Size>('getPageSize', PluginFileAPI.getPageSize(notePath, page));
 
   const dir = await outDir();
+  await clearRenders(dir); // snapshots from earlier edits are never needed again
   const preview = await call<{imagePath: string; rect: Rect}>(
     'generateLassoPreview',
     PluginCommAPI.generateLassoPreview(`${dir}/lasso-${Date.now()}.png`),
@@ -213,6 +215,7 @@ export async function startCropJob(onStage: OnStage = noStage): Promise<CropJob>
   if (!(await FileUtils.copyFile(sel.sourcePath, `${dir}/${name}`))) {
     throw new Error(`could not keep the original (${name})`);
   }
+  await pruneOriginals(dir);
   return {
     sel,
     sourcePath: `${dir}/${name}`,

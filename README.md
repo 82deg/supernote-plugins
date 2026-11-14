@@ -6,9 +6,9 @@ Supernote plugins by 82deg, plus the shared tools, template and conventions used
 
 | Plugin | What it does | Latest |
 |---|---|---|
-| [Image Placer](ImagePlacer/) | Add pictures to your notes; crop and rotate them from the lasso menu | not released yet |
+| [Image Placer](ImagePlacer/) | Add pictures to your notes; crop and rotate them from the lasso menu | 1.0.0 |
 
-Feedback and bugs: [open an issue](../../issues/new/choose) and pick the plugin.
+Feedback and bugs: [open an issue](https://github.com/82deg/supernote-plugins/issues/new/choose) and pick the plugin.
 
 ## Developing
 
