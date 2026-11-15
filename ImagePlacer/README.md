@@ -6,7 +6,7 @@ Add pictures to your **regular notes** on a Supernote Manta or Nomad. Pick an im
 
 ## What it does
 
-- **Insert Image** (note toolbar): opens Supernote's file picker. The picture appears at almost full page width, selected with the lasso.
+- **Insert Image** (note toolbar): opens Supernote's file picker. The picture appears in the middle of the page at half its width, selected with the lasso. It keeps enough detail to enlarge it to almost full width.
 - **Crop** (lasso → More): drag the edges, the corners, or the whole frame. Ratio presets: Free, Original, 1:1, 4:3, 3:4, 16:9, 9:16. The kept part stays exactly where it was on the page.
 - **Rounded corners** (in Crop): None, Small, Medium, Large or Circle, previewed live. Circle picks a square crop; choose another ratio for a pill shape. You can change or remove the corners later.
 - **Settings:** choose the corners new pictures get (Settings → Apps → Plugins → Image Placer → settings button).
@@ -31,6 +31,8 @@ Add pictures to your **regular notes** on a Supernote Manta or Nomad. Pick an im
 ## Good to know
 
 - Supernote shows side handles on the selection frame of plugin pictures, which can stretch them. That's Supernote's own frame, and plugins can't change it. Use the corner handles to keep the proportions.
+- Rounded corners are part of the picture, so they grow or shrink when you resize it with the lasso. To redraw them at the new size, open Crop and tap Apply.
+- The page template (ruled lines, grids) shows through pictures. That's how Supernote draws pages, on every layer. For a clean picture, use a blank template on that page, or hide the **Background** layer in the Layers panel (not in real-time recognition notes, which have no layers).
 - Supernote's **Undo** doesn't cover Crop and Rotate (the button greys out after them). To go back, rotate the other way, or open Crop again and tap Reset or pick Corners: None. Crop always reopens the full original.
 - Crop, Rotate and Insert each take a few seconds. Most of that is Supernote saving the picture into the note. A progress bar shows while it works.
 

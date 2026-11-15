@@ -41,6 +41,9 @@ export function ProgressOverlay({stage}: {stage: Stage}): React.JSX.Element {
   }, []);
 
   const pct = Math.round(Math.min(1, shown) * 100);
+  // Whole 5% steps between 0 and 100 (fewer e-ink redraws, less ghosting);
+  // the bar itself stays smooth.
+  const label = pct >= 100 ? 100 : Math.floor(pct / 5) * 5;
   return (
     <View style={styles.backdrop} pointerEvents="auto">
       <View style={styles.card}>
@@ -50,7 +53,9 @@ export function ProgressOverlay({stage}: {stage: Stage}): React.JSX.Element {
         <View style={styles.track}>
           <View style={[styles.fill, {width: `${pct}%`}]} />
         </View>
-        <Text style={styles.pct}>{pct}%</Text>
+        <View style={styles.pctBox}>
+          <Text style={styles.pct}>{label}%</Text>
+        </View>
       </View>
     </View>
   );
@@ -76,5 +81,8 @@ const styles = StyleSheet.create({
   label: {fontSize: 18, color: '#000', marginBottom: 10},
   track: {height: 12, borderWidth: 2, borderColor: '#000', borderRadius: 6, overflow: 'hidden'},
   fill: {height: '100%', backgroundColor: '#000'},
-  pct: {fontSize: 14, color: '#000', textAlign: 'right', marginTop: 6},
+  // Fixed-width box with fixed-width digits: "100%" fully covers the previous
+  // number, so e-ink ghosting can't leave a stray digit next to it.
+  pctBox: {alignSelf: 'flex-end', width: 56, marginTop: 6, backgroundColor: '#fff'},
+  pct: {fontSize: 14, color: '#000', textAlign: 'right', fontVariant: ['tabular-nums']},
 });

@@ -20,7 +20,7 @@ Add pictures to your regular notes on Supernote Manta / Nomad, then crop them, r
 4. In a note, tap **Insert Image** in the toolbar. Crop and Rotate are under the lasso's **More** menu.
 
 ### What's in 1.0.0
-- Insert Image via Supernote's own file picker. The picture lands selected, at almost full page width.
+- Insert Image via Supernote's own file picker. The picture lands selected, centred at half the page width.
 - Crop: edges, corners, drag to move. Presets: Free, Original, 1:1, 4:3, 3:4, 16:9, 9:16.
 - Rounded corners: None, Small, Medium, Large or Circle, with a live preview. Set a default for new pictures in the plugin's settings.
 - Re-crop later from the full original (your 50 most recent crops).

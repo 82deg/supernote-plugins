@@ -1,7 +1,7 @@
 // Insert a picture from the user's files into the current page, selected with
 // the lasso so it can be moved, resized, cropped or rotated straight away.
-import {Image, PixelRatio} from 'react-native';
-import {FileUtils, PluginCommAPI, PluginFileAPI, PluginManager, RattaFileSelector} from 'sn-plugin-lib';
+import {PixelRatio} from 'react-native';
+import {FileUtils, PluginCommAPI, PluginManager, RattaFileSelector} from 'sn-plugin-lib';
 import {call, FILE_READ, FILE_WRITE} from '../sdk';
 import {log, fmt} from '../log';
 import {centeredRect, padRect, type Size} from './geometry';
@@ -14,12 +14,13 @@ import {encodeTag} from './pictureTag';
 import {originalsDir} from './pluginDir';
 import {pruneOriginals} from './housekeeping';
 import {loadDefaultCorners} from '../settings';
+import {currentPage, imageSize, PICTURE} from './page';
 
-const PICTURE = 200; // Element.TYPE_PICTURE
 const IMAGE_SUFFIXES = ['png', 'jpg', 'jpeg'];
-/** Placed width as a share of the page width (height is capped at 90% of the page). */
-const PLACED_WIDTH = 0.9;
-/** Keep some extra pixels so a later enlargement with the lasso stays sharp. */
+/** Placed width as a share of the page width, centred (height is capped at 90% of the page). */
+const PLACED_WIDTH = 0.5;
+/** Keep enough pixels to enlarge it to almost full width with the lasso and stay sharp. */
+const SHARP_UP_TO_WIDTH = 0.9;
 const HEADROOM = 1.25;
 
 export class PermissionError extends Error {}
@@ -56,19 +57,11 @@ export async function pickImage(): Promise<string | null> {
   return picked && picked.length > 0 ? picked[0] : null;
 }
 
-function imageSize(path: string): Promise<Size> {
-  return new Promise((resolve, reject) =>
-    Image.getSize(`file://${path}`, (width, height) => resolve({width, height}), reject),
-  );
-}
-
 export async function insertPicture(path: string, render: RenderFn, onStage: OnStage): Promise<string> {
   const label = 'Adding the image…';
   onStage({from: 0, to: 0.15, label});
   const size = await imageSize(path);
-  const notePath = await call<string>('getCurrentFilePath', PluginCommAPI.getCurrentFilePath());
-  const page = await call<number>('getCurrentPageNum', PluginCommAPI.getCurrentPageNum());
-  const pageSize = await call<Size>('getPageSize', PluginFileAPI.getPageSize(notePath, page));
+  const {page, pageSize} = await currentPage();
   const corners = await loadDefaultCorners();
   const rect = centeredRect(pageSize, size, PLACED_WIDTH);
 
@@ -76,8 +69,12 @@ export async function insertPicture(path: string, render: RenderFn, onStage: OnS
   let picturePath = path;
   let pictureSize = size;
   // Never more than a full page's worth of pixels: anything beyond is invisible and slows the note.
+  const roomy = centeredRect(pageSize, size, SHARP_UP_TO_WIDTH);
   const maxSide = Math.round(
-    Math.min(Math.max(rect.right - rect.left, rect.bottom - rect.top) * HEADROOM, Math.max(pageSize.width, pageSize.height)),
+    Math.min(
+      Math.max(roomy.right - roomy.left, roomy.bottom - roomy.top) * HEADROOM,
+      Math.max(pageSize.width, pageSize.height),
+    ),
   );
   if (Math.max(size.width, size.height) > maxSide) {
     onStage({from: 0.15, to: 0.3, label});
@@ -114,6 +111,8 @@ export async function insertPicture(path: string, render: RenderFn, onStage: OnS
   }
 
   onStage({from: 0.4, to: 0.9, label});
+  // Main layer. A layer of its own was tried (b27): the template still shows
+  // through pictures on any layer, so it only added a layer to every page.
   const el = await call<any>('createElement', PluginCommAPI.createElement(PICTURE));
   el.pageNum = page;
   el.layerNum = 0;

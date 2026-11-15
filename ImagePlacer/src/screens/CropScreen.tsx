@@ -162,7 +162,6 @@ export default function CropScreen({
       ) as Record<Corner, PanResponderInstance>,
       move: drag((start, dx, dy) => moveBox(start, dx, dy, bounds)),
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [bounds],
   );
 
@@ -178,7 +177,9 @@ export default function CropScreen({
   const keptH = edges.bottom - edges.top;
 
   const start = initialEdges ?? bounds;
-  const changed = !sameEdges(edges, start) || corners !== initialCorners;
+  // With rounded corners Apply is always on: after resizing a picture with the
+  // lasso, Apply redraws the corners at the new size.
+  const changed = !sameEdges(edges, start) || corners !== initialCorners || corners !== 'none';
   // Corner radius on screen: page px → source px → dp.
   const scale = pageScale > 0 ? pageScale : 1;
   const rd =

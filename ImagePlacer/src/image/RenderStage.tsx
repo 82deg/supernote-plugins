@@ -3,7 +3,7 @@
 // the `render` function handed to `onReady`.
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Image, PixelRatio, View} from 'react-native';
-import {captureRef} from 'react-native-view-shot';
+import {captureRef, releaseCapture} from 'react-native-view-shot';
 import type {Size} from '../note/geometry';
 import {stageLayout, type Crop, type Rotation, type StageLayout} from './transform';
 
@@ -21,6 +21,22 @@ export interface RenderJob {
 
 export type RenderFn = (job: RenderJob) => Promise<{path: string; size: Size}>;
 
+/** A render that never loads (e.g. an unreadable image) must not hang the plugin. */
+const RENDER_TIMEOUT_MS = 20000;
+
+// Captures are temp files in the host's cache. The note keeps its own copy and
+// originals are copied to our folder, so they can all go once an action ends.
+const captured: string[] = [];
+export function releaseRenders(): void {
+  for (const uri of captured.splice(0)) {
+    try {
+      releaseCapture(uri);
+    } catch {
+      // already gone
+    }
+  }
+}
+
 interface Pending {
   job: RenderJob;
   layout: StageLayout;
@@ -36,7 +52,22 @@ export default function RenderStage({onReady}: {onReady: (render: RenderFn) => v
     job =>
       new Promise((resolve, reject) => {
         const layout = stageLayout(job.size, job.rotation, job.crop, job.maxSide, PixelRatio.get());
-        setPending({job, layout, resolve, reject});
+        const timer = setTimeout(() => {
+          setPending(null);
+          reject(new Error('render timed out'));
+        }, RENDER_TIMEOUT_MS);
+        setPending({
+          job,
+          layout,
+          resolve: r => {
+            clearTimeout(timer);
+            resolve(r);
+          },
+          reject: e => {
+            clearTimeout(timer);
+            reject(e);
+          },
+        });
       }),
     [],
   );
@@ -58,6 +89,7 @@ export default function RenderStage({onReady}: {onReady: (render: RenderFn) => v
         width: pending.layout.output.width,
         height: pending.layout.output.height,
       });
+      captured.push(uri);
       pending.resolve({path: uri.replace(/^file:\/\//, ''), size: pending.layout.output});
     } catch (e) {
       pending.reject(e instanceof Error ? e : new Error(String(e)));

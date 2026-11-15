@@ -39,10 +39,17 @@ export function roundRect(r: Rect): Rect {
   };
 }
 
-/** The rect of a picture after a quarter turn: same centre, sides swapped, kept on the page. */
+/**
+ * The rect of a picture after a quarter turn: same centre, sides swapped, kept
+ * on the page. Too big for the page once turned, it shrinks evenly, so it never
+ * gets stretched.
+ */
 export function rotatedRect(r: Rect, page: Size): Rect {
-  const w = Math.min(r.bottom - r.top, page.width);
-  const h = Math.min(r.right - r.left, page.height);
+  const w0 = r.bottom - r.top;
+  const h0 = r.right - r.left;
+  const fit = Math.min(1, page.width / w0, page.height / h0);
+  const w = w0 * fit;
+  const h = h0 * fit;
   const cx = (r.left + r.right) / 2;
   const cy = (r.top + r.bottom) / 2;
   const left = Math.min(Math.max(0, cx - w / 2), page.width - w);

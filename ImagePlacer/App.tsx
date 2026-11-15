@@ -24,7 +24,7 @@ import {
   ROTATE_RIGHT_BUTTON_ID,
   SETTINGS_ID,
 } from './src/buttons';
-import RenderStage, {type RenderFn} from './src/image/RenderStage';
+import RenderStage, {releaseRenders, type RenderFn} from './src/image/RenderStage';
 import {ProgressOverlay, type Stage} from './src/ui/Progress';
 import CropScreen from './src/screens/CropScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -50,6 +50,7 @@ function App(): React.JSX.Element {
     setSettings(false);
     setError(null);
     busy.current = false;
+    releaseRenders();
     PluginManager.closePluginView();
   }, []);
 

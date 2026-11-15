@@ -4,7 +4,7 @@
 
 First public release.
 
-- **Insert Image:** opens Supernote's file picker. The picture lands at 90% of the page width, selected with the lasso.
+- **Insert Image:** opens Supernote's file picker. The picture lands centred at half the page width, selected with the lasso.
 - **Crop** from the lasso menu:
   - edge bars, corner marks, and drag-to-move;
   - ratio presets: Free, Original, 1:1, 4:3, 3:4, 16:9, 9:16;

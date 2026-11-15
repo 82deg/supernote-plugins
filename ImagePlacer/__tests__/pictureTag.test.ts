@@ -45,4 +45,12 @@ describe('rotatedRect', () => {
     expect(r.right - r.left).toBe(200);
     expect(r.bottom - r.top).toBe(1000);
   });
+
+  it('shrinks evenly instead of stretching when too big once turned', () => {
+    const r = rotatedRect({left: 252, top: 86, right: 1152, bottom: 1786}, page); // 900 × 1700
+    const w = r.right - r.left;
+    const h = r.bottom - r.top;
+    expect(w).toBeLessThanOrEqual(page.width);
+    expect(h / w).toBeCloseTo(900 / 1700, 2);
+  });
 });
