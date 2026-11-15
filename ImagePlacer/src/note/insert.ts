@@ -1,13 +1,19 @@
 // Insert a picture from the user's files into the current page, selected with
 // the lasso so it can be moved, resized, cropped or rotated straight away.
-import {Image} from 'react-native';
-import {PluginCommAPI, PluginFileAPI, PluginManager, RattaFileSelector} from 'sn-plugin-lib';
+import {Image, PixelRatio} from 'react-native';
+import {FileUtils, PluginCommAPI, PluginFileAPI, PluginManager, RattaFileSelector} from 'sn-plugin-lib';
 import {call, FILE_READ, FILE_WRITE} from '../sdk';
 import {log, fmt} from '../log';
 import {centeredRect, padRect, type Size} from './geometry';
 import {fullCrop} from '../image/transform';
 import type {RenderFn} from '../image/RenderStage';
 import type {OnStage} from '../ui/Progress';
+import {cornerShare, type Corners} from '../image/corners';
+import {fullEdges} from '../image/crop';
+import {encodeTag} from './pictureTag';
+import {originalsDir} from './pluginDir';
+import {pruneOriginals} from './housekeeping';
+import {loadDefaultCorners} from '../settings';
 
 const PICTURE = 200; // Element.TYPE_PICTURE
 const IMAGE_SUFFIXES = ['png', 'jpg', 'jpeg'];
@@ -63,16 +69,18 @@ export async function insertPicture(path: string, render: RenderFn, onStage: OnS
   const notePath = await call<string>('getCurrentFilePath', PluginCommAPI.getCurrentFilePath());
   const page = await call<number>('getCurrentPageNum', PluginCommAPI.getCurrentPageNum());
   const pageSize = await call<Size>('getPageSize', PluginFileAPI.getPageSize(notePath, page));
+  const corners = await loadDefaultCorners();
   const rect = centeredRect(pageSize, size, PLACED_WIDTH);
 
   // Big photos make the note slow: hand the note only the pixels it can show.
   let picturePath = path;
+  let pictureSize = size;
   // Never more than a full page's worth of pixels: anything beyond is invisible and slows the note.
   const maxSide = Math.round(
     Math.min(Math.max(rect.right - rect.left, rect.bottom - rect.top) * HEADROOM, Math.max(pageSize.width, pageSize.height)),
   );
   if (Math.max(size.width, size.height) > maxSide) {
-    onStage({from: 0.15, to: 0.35, label});
+    onStage({from: 0.15, to: 0.3, label});
     const jpeg = /\.jpe?g$/i.test(path);
     const out = await render({
       path,
@@ -85,16 +93,52 @@ export async function insertPicture(path: string, render: RenderFn, onStage: OnS
     });
     log(`downscaled ${size.width}×${size.height} → ${out.size.width}×${out.size.height}`);
     picturePath = out.path;
+    pictureSize = out.size;
   }
 
-  onStage({from: 0.35, to: 0.9, label});
+  let userData = '';
+  if (corners !== 'none') {
+    onStage({from: 0.3, to: 0.4, label});
+    userData = await keepOriginal(picturePath, pictureSize, corners);
+    const placed = {width: rect.right - rect.left, height: rect.bottom - rect.top};
+    const out = await render({
+      path: picturePath,
+      size: pictureSize,
+      rotation: 0,
+      crop: fullCrop(pictureSize, 0),
+      maxSide: Math.max(pictureSize.width, pictureSize.height),
+      cornerRadius: cornerShare(corners, placed, PixelRatio.get()),
+    });
+    log(`rounded corners (${corners}) → ${out.size.width}×${out.size.height}`);
+    picturePath = out.path;
+  }
+
+  onStage({from: 0.4, to: 0.9, label});
   const el = await call<any>('createElement', PluginCommAPI.createElement(PICTURE));
   el.pageNum = page;
   el.layerNum = 0;
+  el.userData = userData;
   el.picture = {picturePath, rect};
   await call('insertPageElements', PluginCommAPI.insertPageElements([el], page, null));
   onStage({from: 0.9, to: 1, label});
   // Leave it selected: the user can move/resize it, or use Crop / Rotate.
   await call('lassoElements', PluginCommAPI.lassoElements(padRect(rect, 4, pageSize)));
-  return `inserted ${size.width}×${size.height} at ${fmt(rect)}`;
+  return `inserted ${size.width}×${size.height} at ${fmt(rect)}, corners ${corners}`;
+}
+
+/**
+ * Keep the square-cornered picture so Crop can change or remove the corners
+ * later. Returns the tag for the picture, or '' if it couldn't be kept (the
+ * picture is still added, with its corners baked in).
+ */
+async function keepOriginal(path: string, size: Size, corners: Corners): Promise<string> {
+  const dir = await originalsDir();
+  const ext = /\.jpe?g$/i.test(path) ? 'jpg' : 'png';
+  const name = `orig-${Date.now()}.${ext}`;
+  if (!(await FileUtils.copyFile(path, `${dir}/${name}`))) {
+    log(`could not keep the original of ${path}; corners will be fixed`);
+    return '';
+  }
+  await pruneOriginals(dir);
+  return encodeTag({o: name, w: size.width, h: size.height, e: fullEdges(size), r: corners});
 }

@@ -5,6 +5,8 @@ import {log} from '../log';
 
 /** Uncropped originals kept for re-cropping (newest first). Older ones re-crop from the picture as shown. */
 export const MAX_ORIGINALS = 50;
+/** File names of kept originals: a millisecond timestamp, png or jpg. */
+export const ORIGINAL = /^orig-\d+\.(png|jpg)$/;
 
 /**
  * Which files to delete so only the newest `keep` matching `pattern` remain.
@@ -18,7 +20,7 @@ export function filesToPrune(names: string[], pattern: RegExp, keep: number): st
 }
 
 /** listFiles has returned both plain paths and {path} objects across SDK versions. */
-async function listNames(dir: string): Promise<string[]> {
+export async function listNames(dir: string): Promise<string[]> {
   const entries = ((await FileUtils.listFiles(dir)) ?? []) as unknown[];
   return entries
     .map(e => (typeof e === 'string' ? e : (e as {path?: string})?.path ?? ''))
@@ -38,7 +40,7 @@ async function remove(dir: string, names: string[]): Promise<void> {
 /** Keep only the newest MAX_ORIGINALS uncropped originals. Never throws. */
 export async function pruneOriginals(dir: string): Promise<void> {
   try {
-    await remove(dir, filesToPrune(await listNames(dir), /^orig-\d+\.png$/, MAX_ORIGINALS));
+    await remove(dir, filesToPrune(await listNames(dir), ORIGINAL, MAX_ORIGINALS));
   } catch (e) {
     log(`housekeeping (originals) skipped: ${e}`);
   }

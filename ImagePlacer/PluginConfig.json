@@ -1,10 +1,10 @@
 {
   "name": "Image Placer",
-  "desc": "Add pictures from your folders or SD card to any note. The picture lands selected, ready to move or resize. Crop it (free, original, 1:1, 4:3, 3:4, 16:9, 9:16) and rotate it from the lasso menu. Works fully offline: no internet access, and it never changes your files.",
+  "desc": "Add pictures from your folders or SD card to any note. The picture lands selected, ready to move or resize. Crop it (free, original, 1:1, 4:3, 3:4, 16:9, 9:16), round its corners and rotate it from the lasso menu. Works fully offline: no internet access, and it never changes your files.",
   "author": "82deg",
   "iconPath": "assets/icon.png",
   "versionName": "1.0.0",
-  "versionCode": "20",
+  "versionCode": "25",
   "pluginID": "b8a46b121u8svy1x",
   "pluginKey": "ImagePlacer",
   "jsMainPath": "index",

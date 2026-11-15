@@ -15,6 +15,8 @@ export interface RenderJob {
   maxSide: number; // longest output side, px
   format?: 'png' | 'jpg'; // jpg for photos (smaller), png for line art / transparency
   quality?: number; // jpg only, 0–1
+  /** Rounded corners: radius as a share of the output width (0 = square). Forces png. */
+  cornerRadius?: number;
 }
 
 export type RenderFn = (job: RenderJob) => Promise<{path: string; size: Size}>;
@@ -49,7 +51,8 @@ export default function RenderStage({onReady}: {onReady: (render: RenderFn) => v
       // One frame for the decoded bitmap to be drawn before capturing.
       await new Promise(r => setTimeout(r, 150));
       const uri = await captureRef(boxRef, {
-        format: pending.job.format ?? 'png',
+        // Rounded corners are transparent, and jpg has no transparency.
+        format: pending.job.cornerRadius ? 'png' : pending.job.format ?? 'png',
         quality: pending.job.quality ?? 0.85,
         result: 'tmpfile',
         width: pending.layout.output.width,
@@ -67,11 +70,18 @@ export default function RenderStage({onReady}: {onReady: (render: RenderFn) => v
     return null;
   }
   const {layout, job} = pending;
+  const radius = Math.min((job.cornerRadius ?? 0) * layout.box.width, Math.min(layout.box.width, layout.box.height) / 2);
   return (
     <View
       ref={boxRef}
       collapsable={false}
-      style={{width: layout.box.width, height: layout.box.height, overflow: 'hidden', backgroundColor: 'transparent'}}>
+      style={{
+        width: layout.box.width,
+        height: layout.box.height,
+        overflow: 'hidden', // also clips the image to the rounded corners
+        borderRadius: radius,
+        backgroundColor: 'transparent',
+      }}>
       <Image
         source={{uri: `file://${job.path}`}}
         // Android fades new images in over ~300 ms; capturing during the fade

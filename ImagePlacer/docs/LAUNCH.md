@@ -9,7 +9,7 @@ Texts ready to paste. Replace `<…>` placeholders once the release exists.
 **Tag:** `image-placer-v1.0.0`  **Title:** `Image Placer 1.0.0`  **Attach:** `ImagePlacer-1.0.0.snplg`
 
 ```markdown
-Add pictures to your regular notes on Supernote Manta / Nomad, then crop and rotate them from the lasso menu.
+Add pictures to your regular notes on Supernote Manta / Nomad, then crop them, round their corners and rotate them from the lasso menu.
 
 **Requires** Chauvet 3.30.45 or later.
 
@@ -22,6 +22,7 @@ Add pictures to your regular notes on Supernote Manta / Nomad, then crop and rot
 ### What's in 1.0.0
 - Insert Image via Supernote's own file picker. The picture lands selected, at almost full page width.
 - Crop: edges, corners, drag to move. Presets: Free, Original, 1:1, 4:3, 3:4, 16:9, 9:16.
+- Rounded corners: None, Small, Medium, Large or Circle, with a live preview. Set a default for new pictures in the plugin's settings.
 - Re-crop later from the full original (your 50 most recent crops).
 - Rotate left / right, in place.
 - Big photos are scaled down to the size they're shown at, so notes stay quick.
@@ -44,6 +45,7 @@ I wanted to drop images into my regular notes, so I built **Image Placer**.
 **What it does**
 - **Insert Image** (toolbar) opens Supernote's own file picker. The picture lands on the page already selected, so you can move/resize it right away.
 - **Crop** (lasso → More): drag edges, corners or the whole frame, with presets Free / Original / 1:1 / 4:3 / 3:4 / 16:9 / 9:16. Re-crop later from the full original.
+- **Rounded corners** (in Crop): None / Small / Medium / Large / Circle, previewed live. Set a default for new pictures under Settings → Apps → Plugins → Image Placer.
 - **Rotate left / right** (lasso → More), in place.
 - Large photos are scaled down to their on-page size so notes stay fast.
 
@@ -54,7 +56,9 @@ Release: <link to GitHub release>
 
 **Tested on:** Nomad, Chauvet 3.30.45.
 
-**Known:** Supernote's selection frame shows side handles that can stretch plugin pictures. That's the system frame, which plugins can't change, so use the corners to keep proportions.
+**Known:**
+- Supernote's selection frame shows side handles that can stretch plugin pictures. That's the system frame, which plugins can't change, so use the corners to keep proportions.
+- Undo doesn't cover Crop and Rotate. Rotate back, or re-crop (it always reopens the full original).
 
 Feedback and bug reports welcome, here or on GitHub: https://github.com/82deg/supernote-plugins/issues
 ```
@@ -69,7 +73,7 @@ Attach 2–3 screenshots (picker → inserted picture → crop screen), or a sho
 Hi! Could you add Image Placer to the List of ALL Available Plugins?
 
 - Creator: 82deg (GitHub: 82deg)
-- Plugin: Image Placer — add pictures to notes; crop (with ratio presets) and rotate them from the lasso menu
+- Plugin: Image Placer — add pictures to notes; crop (with ratio presets), round corners and rotate them from the lasso menu
 - Repo: https://github.com/82deg/supernote-plugins/tree/main/ImagePlacer
 - Download: <link to GitHub release>
 - Version: 1.0.0

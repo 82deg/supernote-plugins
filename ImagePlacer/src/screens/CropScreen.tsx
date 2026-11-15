@@ -1,11 +1,12 @@
 // Crop editor. Bars on each side and marks on each corner trim the picture;
 // dragging inside the frame moves it. Ratio chips lock the shape (corners
-// only, then). The image is never stretched; the kept part stays where it was
+// only, then); corner chips round the picture's corners, previewed live. The image is never stretched; the kept part stays where it was
 // on the page. E-ink: black on white, shaded trimmed area, no animation.
 import React, {useMemo, useRef, useState} from 'react';
 import {
   Image,
   PanResponder,
+  PixelRatio,
   Pressable,
   StyleSheet,
   Text,
@@ -26,6 +27,7 @@ import {
   type Edge,
   type Edges,
 } from '../image/crop';
+import {CORNER_STYLES, cornerRadius, type Corners} from '../image/corners';
 
 interface Props {
   sourcePath: string;
@@ -34,8 +36,12 @@ interface Props {
   bounds?: Edges;
   /** Start from an earlier crop (non-destructive re-crop); default: `bounds`. */
   initialEdges?: Edges;
+  /** The picture's corner style now; default none. */
+  initialCorners?: Corners;
+  /** Page px per source px, so the corner preview matches the page. */
+  pageScale: number;
   title?: string;
-  onDone: (edges: Edges) => void;
+  onDone: (edges: Edges, corners: Corners) => void;
   onCancel: () => void;
 }
 
@@ -55,6 +61,7 @@ const STROKE = 12; // dp, thickness of side bars and corner marks
 const OUTLINE = 2; // dp, white outline so marks show on dark pictures
 const ARM = 36; // dp, length of each arm of a corner mark
 const HIT = 56; // dp touch target around each bar / corner
+const SHADE = 'rgba(255,255,255,0.7)'; // trimmed-away parts
 const EDGES: Edge[] = ['left', 'top', 'right', 'bottom'];
 const CORNERS: Corner[] = ['topLeft', 'topRight', 'bottomLeft', 'bottomRight'];
 
@@ -63,6 +70,8 @@ export default function CropScreen({
   sourceSize,
   bounds: boundsProp,
   initialEdges,
+  initialCorners = 'none',
+  pageScale,
   title,
   onDone,
   onCancel,
@@ -71,6 +80,7 @@ export default function CropScreen({
   const bounds = useMemo(() => boundsProp ?? fullEdges(sourceSize), [boundsProp, sourceSize]);
   const [edges, setEdges] = useState<Edges>(() => initialEdges ?? bounds);
   const [ratioId, setRatioId] = useState<RatioId>('free');
+  const [corners, setCorners] = useState<Corners>(initialCorners);
   const edgesRef = useRef(edges);
   edgesRef.current = edges;
 
@@ -96,6 +106,13 @@ export default function CropScreen({
         ? (bounds.right - bounds.left) / (bounds.bottom - bounds.top)
         : RATIOS.find(r => r.id === id)!.value!;
     setEdges(fitRatio(value, bounds, edgesRef.current));
+  };
+
+  const pickCorners = (id: Corners) => {
+    setCorners(id);
+    if (id === 'circle' && ratioId !== '1:1') {
+      pickRatio('1:1'); // a circle needs a square; pick another ratio for a pill
+    }
   };
 
   // dp per source px: zoom the picture to fill the canvas (leaving room for
@@ -161,7 +178,11 @@ export default function CropScreen({
   const keptH = edges.bottom - edges.top;
 
   const start = initialEdges ?? bounds;
-  const changed = !sameEdges(edges, start);
+  const changed = !sameEdges(edges, start) || corners !== initialCorners;
+  // Corner radius on screen: page px → source px → dp.
+  const scale = pageScale > 0 ? pageScale : 1;
+  const rd =
+    (cornerRadius(corners, {width: keptW * scale, height: keptH * scale}, PixelRatio.get()) / scale) * d;
   const canReset = !isFull(edges, bounds) || ratioId !== 'free';
 
   return (
@@ -206,6 +227,25 @@ export default function CropScreen({
         })}
       </View>
 
+      {/* Corner styles: same chips, on their own labelled row. */}
+      <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Corners">
+        <Text style={styles.rowLabel}>Corners</Text>
+        {CORNER_STYLES.map(c => {
+          const on = c.id === corners;
+          return (
+            <Pressable
+              key={c.id}
+              style={[styles.chip, on && styles.chipOn]}
+              onPress={() => pickCorners(c.id)}
+              accessibilityRole="radio"
+              accessibilityState={{selected: on}}
+              accessibilityLabel={c.id === 'none' ? 'Square corners' : `${c.label} corners`}>
+              <Text style={[styles.chipLabel, on && styles.chipLabelOn]}>{c.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
       <View style={styles.area} onLayout={onLayout}>
         {d > 0 ? (
           <View style={{width: w, height: h}}>
@@ -215,10 +255,33 @@ export default function CropScreen({
             <View style={[styles.shade, {left: 0, top: k.bottom, width: w, height: h - k.bottom}]} />
             <View style={[styles.shade, {left: 0, top: k.top, width: k.left, height: k.bottom - k.top}]} />
             <View style={[styles.shade, {left: k.right, top: k.top, width: w - k.right, height: k.bottom - k.top}]} />
+            {/* Rounded corners: shade what they cut off. A ring as thick as the
+                radius, clipped to the frame, leaves exactly the rounded shape clear. */}
+            {rd > 0 ? (
+              <View
+                pointerEvents="none"
+                style={[styles.cornerClip, {left: k.left, top: k.top, width: k.right - k.left, height: k.bottom - k.top}]}>
+                <View
+                  style={{
+                    position: 'absolute',
+                    left: -rd,
+                    top: -rd,
+                    width: k.right - k.left + 2 * rd,
+                    height: k.bottom - k.top + 2 * rd,
+                    borderWidth: rd,
+                    borderRadius: 2 * rd,
+                    borderColor: SHADE,
+                  }}
+                />
+              </View>
+            ) : null}
             {/* Kept region: frame + drag-to-move surface. */}
             <View
               {...responders.move.panHandlers}
-              style={[styles.frame, {left: k.left, top: k.top, width: k.right - k.left, height: k.bottom - k.top}]}
+              style={[
+                styles.frame,
+                {left: k.left, top: k.top, width: k.right - k.left, height: k.bottom - k.top, borderRadius: rd},
+              ]}
             />
             {/* Side bars (hidden while a ratio is locked: corners keep the shape). */}
             {ratio
@@ -280,10 +343,10 @@ export default function CropScreen({
         </Text>
         <Pressable
           style={[styles.primaryBtn, !changed && styles.primaryBtnDisabled]}
-          onPress={() => onDone(edges)}
+          onPress={() => onDone(edges, corners)}
           disabled={!changed}
           accessibilityRole="button"
-          accessibilityLabel="Apply crop"
+          accessibilityLabel="Apply"
           accessibilityState={{disabled: !changed}}>
           <Text style={[styles.primaryLabel, !changed && styles.primaryLabelDisabled]}>Apply</Text>
         </Pressable>
@@ -364,10 +427,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chipOn: {backgroundColor: '#000'},
+  rowLabel: {fontSize: 17, color: '#555', alignSelf: 'center', marginRight: 4},
   chipLabel: {fontSize: 17, color: '#000'},
   chipLabelOn: {color: '#fff', fontWeight: '600'},
   area: {flex: 1, alignItems: 'center', justifyContent: 'center', margin: 24, overflow: 'visible'},
-  shade: {position: 'absolute', backgroundColor: 'rgba(255,255,255,0.7)'},
+  shade: {position: 'absolute', backgroundColor: SHADE},
+  cornerClip: {position: 'absolute', overflow: 'hidden'},
   frame: {position: 'absolute', borderWidth: 2, borderColor: '#000'},
   hit: {position: 'absolute', width: HIT, height: HIT},
   footer: {paddingHorizontal: 24, paddingTop: 8, paddingBottom: 24},

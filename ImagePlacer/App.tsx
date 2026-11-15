@@ -4,7 +4,9 @@
  * - Toolbar "Insert Image": opens Supernote's picker straight away, adds the
  *   chosen picture to the page and leaves it lasso-selected.
  * - Lasso "Rotate left / right": turns the selected picture in place.
- * - Lasso "Crop": opens the crop editor, then replaces the picture in place.
+ * - Lasso "Crop": opens the crop editor (crop + rounded corners), then
+ *   replaces the picture in place.
+ * - Settings (plugin manager's config button): corners for new pictures.
  * The plugin closes itself when each action is done.
  *
  * @format
@@ -15,11 +17,19 @@ import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {PluginManager} from 'sn-plugin-lib';
 import {log} from './src/log';
 import {onButton} from './src/pendingButton';
-import {CROP_BUTTON_ID, INSERT_BUTTON_ID, ROTATE_LEFT_BUTTON_ID, ROTATE_RIGHT_BUTTON_ID} from './src/buttons';
+import {
+  CROP_BUTTON_ID,
+  INSERT_BUTTON_ID,
+  ROTATE_LEFT_BUTTON_ID,
+  ROTATE_RIGHT_BUTTON_ID,
+  SETTINGS_ID,
+} from './src/buttons';
 import RenderStage, {type RenderFn} from './src/image/RenderStage';
 import {ProgressOverlay, type Stage} from './src/ui/Progress';
 import CropScreen from './src/screens/CropScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 import type {Edges} from './src/image/crop';
+import type {Corners} from './src/image/corners';
 import {ensureFileAccess, insertPicture, pickImage} from './src/note/insert';
 import {finishCropJob, rotateLassoPicture, startCropJob, type CropJob} from './src/note/lassoPicture';
 
@@ -28,6 +38,7 @@ function App(): React.JSX.Element {
   const busy = useRef(false);
   const [progress, setProgress] = useState<Stage | null>(null);
   const [cropJob, setCropJob] = useState<CropJob | null>(null);
+  const [settings, setSettings] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const onRenderReady = useCallback((fn: RenderFn) => {
     render.current = fn;
@@ -36,6 +47,7 @@ function App(): React.JSX.Element {
   const close = useCallback(async () => {
     setProgress(null);
     setCropJob(null);
+    setSettings(false);
     setError(null);
     busy.current = false;
     PluginManager.closePluginView();
@@ -94,18 +106,27 @@ function App(): React.JSX.Element {
       busy.current = false; // the editor is interactive; Apply runs as its own action
     });
 
-  const applyCrop = (edges: Edges) => {
+  const applyCrop = (edges: Edges, corners: Corners) => {
     const job = cropJob!;
     setCropJob(null);
     runAction('apply crop', async () => {
-      log(`✓ ${await finishCropJob(job, edges, render.current!, setProgress)}`);
+      log(`✓ ${await finishCropJob(job, edges, corners, render.current!, setProgress)}`);
       await doneAndClose();
     });
   };
 
   // Latest handlers for the button listener (registered once).
-  const handlers = useRef({insert, rotate, crop});
-  handlers.current = {insert, rotate, crop};
+  const openSettings = () => {
+    if (busy.current) {
+      return;
+    }
+    setError(null);
+    setCropJob(null);
+    setSettings(true);
+  };
+
+  const handlers = useRef({insert, rotate, crop, openSettings});
+  handlers.current = {insert, rotate, crop, openSettings};
   useEffect(
     () =>
       onButton(id => {
@@ -118,6 +139,8 @@ function App(): React.JSX.Element {
           handlers.current.rotate(270);
         } else if (id === CROP_BUTTON_ID) {
           handlers.current.crop();
+        } else if (id === SETTINGS_ID) {
+          handlers.current.openSettings();
         }
       }),
     [],
@@ -138,9 +161,13 @@ function App(): React.JSX.Element {
             sourceSize={cropJob.sourceSize}
             bounds={cropJob.bounds}
             initialEdges={cropJob.initialEdges}
+            initialCorners={cropJob.initialCorners}
+            pageScale={(cropJob.fullPlacement.right - cropJob.fullPlacement.left) / cropJob.sourceSize.width}
             onDone={applyCrop}
             onCancel={close}
           />
+        ) : settings ? (
+          <SettingsScreen onDone={close} />
         ) : error ? (
           <View style={styles.message}>
             <Text style={styles.messageText}>{error}</Text>

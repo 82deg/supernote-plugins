@@ -17,6 +17,7 @@ import {
   INSERT_BUTTON_ID,
   ROTATE_LEFT_BUTTON_ID,
   ROTATE_RIGHT_BUTTON_ID,
+  SETTINGS_ID,
 } from './src/buttons';
 
 // Deliberately ungated: release builds bundle with --dev false, so this is the
@@ -58,6 +59,16 @@ PluginManager.registerButton(2, ['NOTE'], {
   icon: Image.resolveAssetSource(require('./assets/icons/crop.png')).uri,
   editDataTypes: [2],
   showType: 1,
+});
+
+// Settings entry on the plugin's page in Settings → Apps → Plugins.
+PluginManager.registerConfigButton();
+PluginManager.registerConfigButtonListener({
+  onClick: () => {
+    log('config button pressed');
+    setPendingButton(SETTINGS_ID);
+    PluginManager.showPluginView();
+  },
 });
 
 // Registered here rather than in App so a press that arrives before the

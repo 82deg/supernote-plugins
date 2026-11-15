@@ -2,6 +2,7 @@
 // original we keep in the plugin folder. Makes crop non-destructive: a later
 // crop reopens the full original with the previous crop edges.
 import type {Edges} from '../image/crop';
+import {isCorners, type Corners} from '../image/corners';
 
 export const TAG_PREFIX = 'imageplacer:';
 
@@ -16,6 +17,8 @@ export interface PictureTag {
   b?: Edges;
   /** Current crop edges, in original px. */
   e: Edges;
+  /** Rounded corners; absent means none. */
+  r?: Corners;
 }
 
 export function encodeTag(tag: Omit<PictureTag, 'v'>): string {
@@ -40,7 +43,8 @@ export function decodeTag(userData: unknown): PictureTag | null {
       t.w > 0 &&
       t.h > 0 &&
       isEdges(t.e) &&
-      (t.b === undefined || isEdges(t.b));
+      (t.b === undefined || isEdges(t.b)) &&
+      (t.r === undefined || isCorners(t.r));
     return ok ? (t as PictureTag) : null;
   } catch {
     return null;

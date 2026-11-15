@@ -1,0 +1,46 @@
+jest.mock('sn-plugin-lib', () => ({FileUtils: {}, PluginManager: {}}));
+
+import {cornerRadius, cornerShare, isCorners} from '../src/image/corners';
+import {cornersFromNames} from '../src/settings';
+
+describe('cornerRadius', () => {
+  const placed = {width: 1264, height: 948};
+
+  it('is the dp size times the pixel ratio', () => {
+    expect(cornerRadius('small', placed, 2)).toBe(16);
+    expect(cornerRadius('medium', placed, 2)).toBe(32);
+    expect(cornerRadius('large', placed, 2)).toBe(48);
+  });
+
+  it('is zero for none', () => {
+    expect(cornerRadius('none', placed, 2)).toBe(0);
+  });
+
+  it('circle is half the short side; never more than that', () => {
+    expect(cornerRadius('circle', placed, 2)).toBe(474);
+    expect(cornerRadius('large', {width: 60, height: 40}, 2)).toBe(20);
+  });
+
+  it('as a share of the width', () => {
+    expect(cornerShare('medium', {width: 640, height: 480}, 2)).toBeCloseTo(0.05);
+    expect(cornerShare('medium', {width: 0, height: 0}, 2)).toBe(0);
+  });
+});
+
+describe('settings', () => {
+  it('reads the corner style from folder names', () => {
+    expect(cornersFromNames(['corners-medium'])).toBe('medium');
+    expect(cornersFromNames(['other', 'corners-large'])).toBe('large');
+  });
+
+  it('falls back to none', () => {
+    expect(cornersFromNames([])).toBe('none');
+    expect(cornersFromNames(['corners-huge'])).toBe('none');
+  });
+
+  it('knows its styles', () => {
+    expect(isCorners('circle')).toBe(true);
+    expect(isCorners('round')).toBe(false);
+    expect(isCorners(undefined)).toBe(false);
+  });
+});

@@ -1,6 +1,6 @@
 # Image Placer for Supernote
 
-Add pictures to your **regular notes** on a Supernote Manta or Nomad. Pick an image with Supernote's own file picker and it lands on the page already selected, so you can move or resize it straight away. Crop it or rotate it from the lasso's **More** menu.
+Add pictures to your **regular notes** on a Supernote Manta or Nomad. Pick an image with Supernote's own file picker and it lands on the page already selected, so you can move or resize it straight away. Crop it, round its corners, or rotate it from the lasso's **More** menu.
 
 <!-- Screenshots: docs/screenshots/ (picker, inserted picture, crop screen, More menu) -->
 
@@ -8,7 +8,9 @@ Add pictures to your **regular notes** on a Supernote Manta or Nomad. Pick an im
 
 - **Insert Image** (note toolbar): opens Supernote's file picker. The picture appears at almost full page width, selected with the lasso.
 - **Crop** (lasso → More): drag the edges, the corners, or the whole frame. Ratio presets: Free, Original, 1:1, 4:3, 3:4, 16:9, 9:16. The kept part stays exactly where it was on the page.
-- **Re-crop:** crop the same picture again later and the full original comes back, so you can widen the crop or reset it. The plugin remembers originals for your 50 most recent crops.
+- **Rounded corners** (in Crop): None, Small, Medium, Large or Circle, previewed live. Circle picks a square crop; choose another ratio for a pill shape. You can change or remove the corners later.
+- **Settings:** choose the corners new pictures get (Settings → Apps → Plugins → Image Placer → settings button).
+- **Re-crop:** crop the same picture again later and the full original comes back, so you can widen the crop, reset it or change the corners. Rotating keeps this too. The plugin remembers originals for your 50 most recent crops.
 - **Rotate left / Rotate right** (lasso → More): turns the picture in place.
 - **Large photos are handled:** they're scaled down to the size they're shown at, so your notes stay quick.
 
@@ -29,6 +31,7 @@ Add pictures to your **regular notes** on a Supernote Manta or Nomad. Pick an im
 ## Good to know
 
 - Supernote shows side handles on the selection frame of plugin pictures, which can stretch them. That's Supernote's own frame, and plugins can't change it. Use the corner handles to keep the proportions.
+- Supernote's **Undo** doesn't cover Crop and Rotate (the button greys out after them). To go back, rotate the other way, or open Crop again and tap Reset or pick Corners: None. Crop always reopens the full original.
 - Crop, Rotate and Insert each take a few seconds. Most of that is Supernote saving the picture into the note. A progress bar shows while it works.
 
 ## Permissions and privacy
@@ -38,7 +41,7 @@ Add pictures to your **regular notes** on a Supernote Manta or Nomad. Pick an im
 | `FILE:READ` | Show and read your images (Document, EXPORT, INBOX, MyStyle, Note, SCREENSHOT and the SD card). |
 | `FILE:WRITE` | Put the picture into the note you have open. |
 
-Image Placer works **fully offline**: it makes **no network requests**, collects nothing, and **never changes or deletes your files**. Crop and Rotate replace only the picture you selected, and only when you tap them. The plugin keeps the uncropped originals and temporary renders in its own private folder, and cleans them up itself.
+Image Placer works **fully offline**: it makes **no network requests**, collects nothing, and **never changes or deletes your files**. Crop and Rotate replace only the picture you selected, and only when you tap them. The plugin keeps the uncropped originals, temporary renders and its one setting in its own private folder, and cleans them up itself.
 
 ## Feedback
 

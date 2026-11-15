@@ -15,6 +15,11 @@ describe('picture tag', () => {
     expect(decodeTag('imageplacer:{not json')).toBeNull();
   });
 
+  it('keeps a valid corner style and rejects unknown ones', () => {
+    expect(decodeTag(encodeTag({...tag, r: 'medium'}))?.r).toBe('medium');
+    expect(decodeTag(encodeTag({...tag, r: 'blobby' as any}))).toBeNull();
+  });
+
   it('rejects paths in the original name', () => {
     expect(decodeTag(encodeTag({...tag, o: '../../Note/x.note'}))).toBeNull();
     expect(decodeTag(encodeTag({...tag, o: '..'}))).toBeNull();
