@@ -2,7 +2,15 @@
 
 Add pictures to your **regular notes** on a Supernote Manta or Nomad. Pick an image with Supernote's own file picker and it lands on the page already selected, so you can move or resize it straight away. Crop it, round its corners, or rotate it from the lasso's **More** menu.
 
-<!-- Screenshots: docs/screenshots/ (picker, inserted picture, crop screen, More menu) -->
+<p>
+  <img src="docs/screenshots/1-page.png" width="32%" alt="A note with a rounded photo and a circular photo placed among handwriting">
+  <img src="docs/screenshots/3-crop.png" width="32%" alt="Crop screen with ratio presets and Large rounded corners">
+  <img src="docs/screenshots/4-circle.png" width="32%" alt="Crop screen with a 1:1 Circle crop">
+</p>
+<p>
+  <img src="docs/screenshots/2-picker.png" width="32%" alt="Supernote's own file picker, including the SD card">
+  <img src="docs/screenshots/5-settings.png" width="32%" alt="Image Placer settings: corners for new pictures and the Images layer option">
+</p>
 
 ## What it does
 

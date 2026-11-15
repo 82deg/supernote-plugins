@@ -82,11 +82,17 @@ case "$cmd" in
         done
         [[ -n "${folder_id:-}" ]] || { echo "No SCREENSHOT folder found (or MTP busy; retry)." >&2; exit 1; }
         # Screenshots are named YYYYMMDD_HHMMSS.png, so name order is time order.
-        names="$( (mtp-files 2>&1 || true) | tr '\r' '\n' | awk -v id="$folder_id" '
-            /Filename:/ {name=$2} /Parent ID:/ {if ($3==id && name ~ /^[0-9]{8}_[0-9]{6}\.png$/) print name}' |
+        names=""
+        for attempt in 1 2 3; do
+            names="$( (mtp-files 2>&1 || true) | tr '\r' '\n' | awk -v id="$folder_id" '
+            /Filename:/ {name=$2} /Parent ID:/ {if ($3==id && name ~ /^[0-9]+_[0-9]+\.png$/) print name}' |
             sort | awk -v s="$since" '$0 >= s".png"' || true)"
+            [[ -n "$names" ]] && break
+            sleep 2
+        done
         [[ -n "${names:-}" ]] || { echo "No screenshots since $since." >&2; exit 1; }
         for n in $names; do
+            [[ -s "$dest/$n" ]] && { echo "$dest/$n"; continue; } # pulled on an earlier run
             mtp --getfile "/SCREENSHOT/$n,$dest/$n" >/dev/null
             [[ -s "$dest/$n" ]] && echo "$dest/$n" || echo "Pull of $n failed; retry." >&2
         done

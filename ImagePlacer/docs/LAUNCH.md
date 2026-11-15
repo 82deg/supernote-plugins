@@ -23,6 +23,8 @@ Add pictures to your regular notes on Supernote Manta / Nomad, then crop them, r
 - Insert Image via Supernote's own file picker. The picture lands selected, centred at half the page width.
 - Crop: edges, corners, drag to move. Presets: Free, Original, 1:1, 4:3, 3:4, 16:9, 9:16.
 - Rounded corners: None, Small, Medium, Large or Circle, with a live preview. Set a default for new pictures in the plugin's settings.
+- Optional: keep new pictures on their own **Images** layer, below your writing (off by default; turn it on in the plugin's settings).
+- Undo doesn't cover Crop and Rotate: rotate back, or re-crop (it always reopens the full original).
 - Re-crop later from the full original (your 50 most recent crops).
 - Rotate left / right, in place.
 - Big photos are scaled down to the size they're shown at, so notes stay quick.
@@ -46,6 +48,7 @@ I wanted to drop images into my regular notes, so I built **Image Placer**.
 - **Insert Image** (toolbar) opens Supernote's own file picker. The picture lands on the page already selected, so you can move/resize it right away.
 - **Crop** (lasso → More): drag edges, corners or the whole frame, with presets Free / Original / 1:1 / 4:3 / 3:4 / 16:9 / 9:16. Re-crop later from the full original.
 - **Rounded corners** (in Crop): None / Small / Medium / Large / Circle, previewed live. Set a default for new pictures under Settings → Apps → Plugins → Image Placer.
+- **Optional Images layer:** keep new pictures grouped on their own layer, below your writing (off by default).
 - **Rotate left / right** (lasso → More), in place.
 - Large photos are scaled down to their on-page size so notes stay fast.
 
@@ -63,7 +66,7 @@ Release: <link to GitHub release>
 Feedback and bug reports welcome, here or on GitHub: https://github.com/82deg/supernote-plugins/issues
 ```
 
-Attach 2–3 screenshots (picker → inserted picture → crop screen), or a short phone video.
+Attach screenshots from `docs/screenshots/`: 1-page, 3-crop, 4-circle (and 2-picker, 5-settings if the post allows more).
 
 ---
 
