@@ -1,10 +1,10 @@
 // Settings, opened from the plugin's page in Settings → Apps → Plugins.
-// One choice for now: the corners new pictures get. Saved as soon as it's
-// tapped. E-ink: black on white, inverted selection, 64dp rows, no animation.
+// Two choices: the corners new pictures get, and whether they go on their
+// own "Images" layer. Saved as soon as they're tapped. E-ink: black on white, inverted selection, 64dp rows, no animation.
 import React, {useEffect, useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {CORNER_DP, CORNER_STYLES, type Corners} from '../image/corners';
-import {loadDefaultCorners, saveDefaultCorners} from '../settings';
+import {loadSettings, saveSettings, type Settings} from '../settings';
 import {ensureFileAccess} from '../note/insert';
 
 // Circle only makes sense on a square crop, so it lives in the crop screen only.
@@ -12,30 +12,36 @@ const OPTIONS = CORNER_STYLES.filter(c => c.id !== 'circle');
 const SWATCH = {width: 72, height: 48};
 
 export default function SettingsScreen({onDone}: {onDone: () => void}): React.JSX.Element {
-  const [corners, setCorners] = useState<Corners | null>(null);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadDefaultCorners().then(setCorners);
+    loadSettings().then(setSettings);
   }, []);
 
-  const pick = async (id: Corners) => {
-    const before = corners;
-    setCorners(id);
+  const update = async (change: Partial<Settings>) => {
+    if (!settings) {
+      return;
+    }
+    const before = settings;
+    const next = {...settings, ...change};
+    setSettings(next);
     setError(null);
     try {
       try {
-        await saveDefaultCorners(id);
+        await saveSettings(next);
       } catch {
         // The plugin's own folder may need file access on some firmware: ask, then retry once.
         await ensureFileAccess();
-        await saveDefaultCorners(id);
+        await saveSettings(next);
       }
     } catch (e) {
-      setCorners(before);
+      setSettings(before);
       setError(e instanceof Error ? e.message : String(e));
     }
   };
+  const corners = settings?.corners;
+  const layerOn = settings?.imagesLayer ?? false;
 
   return (
     <View style={styles.root}>
@@ -55,7 +61,7 @@ export default function SettingsScreen({onDone}: {onDone: () => void}): React.JS
               <Pressable
                 key={o.id}
                 style={[styles.row, on && styles.rowOn]}
-                onPress={() => pick(o.id)}
+                onPress={() => update({corners: o.id as Corners})}
                 accessibilityRole="radio"
                 accessibilityState={{selected: on}}
                 accessibilityLabel={o.id === 'none' ? 'Square corners' : `${o.label} rounded corners`}>
@@ -69,8 +75,28 @@ export default function SettingsScreen({onDone}: {onDone: () => void}): React.JS
           })}
         </View>
         <Text style={styles.note}>
-          You can change the corners of any picture later: select it with the lasso, then More → Crop. Circle is there
-          too.
+          Change the corners of any picture later: select it with the lasso, then More → Crop (Circle is there too).
+        </Text>
+
+        <Text style={[styles.heading, styles.sectionGap]}>Layer</Text>
+        <Pressable
+          style={[styles.row, layerOn && styles.rowOn]}
+          onPress={() => update({imagesLayer: !layerOn})}
+          disabled={!settings}
+          accessibilityRole="switch"
+          accessibilityState={{checked: layerOn}}
+          accessibilityLabel="Add images to a dedicated layer called Images">
+          <View style={[styles.box, layerOn && styles.boxOn]}>
+            {layerOn ? <Text style={styles.tick}>✓</Text> : null}
+          </View>
+          <Text style={[styles.rowLabel, styles.rowLabelWrap, layerOn && styles.rowLabelOn]}>
+            Add images to a dedicated layer called “Images”
+          </Text>
+        </Pressable>
+        <Text style={styles.note}>
+          {layerOn
+            ? 'New pictures go on an Images layer below your writing (one per page). To select, crop or rotate them, first choose the Images layer in the Layers panel. Notes without layers use the main layer.'
+            : 'Off: new pictures go on the main layer, so you can select them straight away. Turn on to keep pictures on their own layer, below your writing.'}
         </Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>
@@ -91,7 +117,7 @@ const styles = StyleSheet.create({
   body: {flex: 1, paddingHorizontal: 32, paddingTop: 32},
   heading: {fontSize: 20, fontWeight: '600', color: '#000', marginBottom: 16},
   row: {
-    height: 72,
+    height: 64,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -105,7 +131,22 @@ const styles = StyleSheet.create({
   swatchOn: {borderColor: '#fff'},
   rowLabel: {fontSize: 20, color: '#000'},
   rowLabelOn: {color: '#fff', fontWeight: '600'},
-  note: {fontSize: 17, color: '#555', lineHeight: 24, marginTop: 16},
+  note: {fontSize: 17, color: '#555', lineHeight: 24, marginTop: 12},
+  sectionGap: {marginTop: 32},
+  rowLabelWrap: {flex: 1},
+  box: {
+    width: 32,
+    height: 32,
+    borderWidth: 2,
+    borderColor: '#000',
+    borderRadius: 6,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 20,
+  },
+  boxOn: {borderColor: '#fff'},
+  tick: {fontSize: 22, fontWeight: '700', color: '#000', lineHeight: 26},
   error: {fontSize: 17, color: '#000', fontWeight: '600', marginTop: 16},
   footer: {paddingHorizontal: 24, paddingBottom: 24},
   primaryBtn: {

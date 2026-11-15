@@ -1,7 +1,7 @@
 jest.mock('sn-plugin-lib', () => ({FileUtils: {}, PluginManager: {}}));
 
 import {cornerRadius, cornerShare, isCorners} from '../src/image/corners';
-import {cornersFromNames} from '../src/settings';
+import {settingsFromNames} from '../src/settings';
 
 describe('cornerRadius', () => {
   const placed = {width: 1264, height: 948};
@@ -28,14 +28,17 @@ describe('cornerRadius', () => {
 });
 
 describe('settings', () => {
-  it('reads the corner style from folder names', () => {
-    expect(cornersFromNames(['corners-medium'])).toBe('medium');
-    expect(cornersFromNames(['other', 'corners-large'])).toBe('large');
+  it('reads settings from folder names', () => {
+    expect(settingsFromNames(['corners-medium'])).toEqual({corners: 'medium', imagesLayer: false});
+    expect(settingsFromNames(['other', 'corners-large', 'images-layer-on'])).toEqual({
+      corners: 'large',
+      imagesLayer: true,
+    });
   });
 
-  it('falls back to none', () => {
-    expect(cornersFromNames([])).toBe('none');
-    expect(cornersFromNames(['corners-huge'])).toBe('none');
+  it('falls back to the defaults: square corners, main layer', () => {
+    expect(settingsFromNames([])).toEqual({corners: 'none', imagesLayer: false});
+    expect(settingsFromNames(['corners-huge'])).toEqual({corners: 'none', imagesLayer: false});
   });
 
   it('knows its styles', () => {

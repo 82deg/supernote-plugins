@@ -6,6 +6,7 @@
 #   tools/mtp.sh detect                  is the device reachable?
 #   tools/mtp.sh push <Plugin>           copy build/outputs/<Plugin>.snplg to MyStyle/
 #   tools/mtp.sh log <Plugin>            pull EXPORT/<Plugin>/log.txt (+ log.prev.txt) to <Plugin>/device-logs/
+#   tools/mtp.sh shots <dest> <since>    pull SCREENSHOT/*.png taken at or after <since> (YYYYMMDD_HHMMSS) to <dest>/
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 export LANG="${LANG:-en_US.UTF-8}" LC_ALL="${LC_ALL:-en_US.UTF-8}"
@@ -69,8 +70,29 @@ case "$cmd" in
         echo "$dest/$file_name"
         tail -60 "$dest/$file_name"
         ;;
+    shots)
+        dest="${2:?destination folder}"
+        since="${3:?since YYYYMMDD_HHMMSS (only new screenshots: never pull older, personal ones)}"
+        mkdir -p "$dest"
+        folder_id=""
+        for attempt in 1 2 3; do # the first session after idle often fails
+            folder_id="$( (mtp-folders 2>&1 || true) | tr '\r' '\n' | awk -F'\t' '$2=="SCREENSHOT"{print $1}' | head -1)"
+            [[ -n "$folder_id" ]] && break
+            sleep 2
+        done
+        [[ -n "${folder_id:-}" ]] || { echo "No SCREENSHOT folder found (or MTP busy; retry)." >&2; exit 1; }
+        # Screenshots are named YYYYMMDD_HHMMSS.png, so name order is time order.
+        names="$( (mtp-files 2>&1 || true) | tr '\r' '\n' | awk -v id="$folder_id" '
+            /Filename:/ {name=$2} /Parent ID:/ {if ($3==id && name ~ /^[0-9]{8}_[0-9]{6}\.png$/) print name}' |
+            sort | awk -v s="$since" '$0 >= s".png"' || true)"
+        [[ -n "${names:-}" ]] || { echo "No screenshots since $since." >&2; exit 1; }
+        for n in $names; do
+            mtp --getfile "/SCREENSHOT/$n,$dest/$n" >/dev/null
+            [[ -s "$dest/$n" ]] && echo "$dest/$n" || echo "Pull of $n failed; retry." >&2
+        done
+        ;;
     *)
-        sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
         exit 2
         ;;
 esac

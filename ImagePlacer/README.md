@@ -9,7 +9,9 @@ Add pictures to your **regular notes** on a Supernote Manta or Nomad. Pick an im
 - **Insert Image** (note toolbar): opens Supernote's file picker. The picture appears in the middle of the page at half its width, selected with the lasso. It keeps enough detail to enlarge it to almost full width.
 - **Crop** (lasso → More): drag the edges, the corners, or the whole frame. Ratio presets: Free, Original, 1:1, 4:3, 3:4, 16:9, 9:16. The kept part stays exactly where it was on the page.
 - **Rounded corners** (in Crop): None, Small, Medium, Large or Circle, previewed live. Circle picks a square crop; choose another ratio for a pill shape. You can change or remove the corners later.
-- **Settings:** choose the corners new pictures get (Settings → Apps → Plugins → Image Placer → settings button).
+- **Settings** (Settings → Apps → Plugins → Image Placer → settings button):
+  - **Corners for new pictures:** None, Small, Medium or Large.
+  - **Add images to a dedicated layer called "Images"** (off by default). When it's on, new pictures go on an Images layer below your writing, one per page, so they stay grouped. Supernote's lasso only selects things on the *current* layer, so to select, crop or rotate those pictures, first choose the **Images** layer in the Layers panel. When it's off, pictures go on the main layer and you can select them straight away. Real-time recognition notes have no layers, so pictures always go on the main layer there.
 - **Re-crop:** crop the same picture again later and the full original comes back, so you can widen the crop, reset it or change the corners. Rotating keeps this too. The plugin remembers originals for your 50 most recent crops.
 - **Rotate left / Rotate right** (lasso → More): turns the picture in place.
 - **Large photos are handled:** they're scaled down to the size they're shown at, so your notes stay quick.
@@ -32,7 +34,7 @@ Add pictures to your **regular notes** on a Supernote Manta or Nomad. Pick an im
 
 - Supernote shows side handles on the selection frame of plugin pictures, which can stretch them. That's Supernote's own frame, and plugins can't change it. Use the corner handles to keep the proportions.
 - Rounded corners are part of the picture, so they grow or shrink when you resize it with the lasso. To redraw them at the new size, open Crop and tap Apply.
-- The page template (ruled lines, grids) shows through pictures. That's how Supernote draws pages, on every layer. For a clean picture, use a blank template on that page, or hide the **Background** layer in the Layers panel (not in real-time recognition notes, which have no layers).
+- The page template (ruled lines, grids), and writing on other layers, show through pictures. That's how Supernote combines layers. Within one layer, a newer picture covers what's under it. For a clean picture, use a blank template on that page, or hide the **Background** layer in the Layers panel (not in real-time recognition notes, which have no layers).
 - Supernote's **Undo** doesn't cover Crop and Rotate (the button greys out after them). To go back, rotate the other way, or open Crop again and tap Reset or pick Corners: None. Crop always reopens the full original.
 - Crop, Rotate and Insert each take a few seconds. Most of that is Supernote saving the picture into the note. A progress bar shows while it works.
 

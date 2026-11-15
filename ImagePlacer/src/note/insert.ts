@@ -13,8 +13,9 @@ import {fullEdges} from '../image/crop';
 import {encodeTag} from './pictureTag';
 import {originalsDir} from './pluginDir';
 import {pruneOriginals} from './housekeeping';
-import {loadDefaultCorners} from '../settings';
+import {loadSettings} from '../settings';
 import {currentPage, imageSize, PICTURE} from './page';
+import {MAIN_LAYER, pictureLayer} from './layers';
 
 const IMAGE_SUFFIXES = ['png', 'jpg', 'jpeg'];
 /** Placed width as a share of the page width, centred (height is capped at 90% of the page). */
@@ -61,8 +62,9 @@ export async function insertPicture(path: string, render: RenderFn, onStage: OnS
   const label = 'Adding the image…';
   onStage({from: 0, to: 0.15, label});
   const size = await imageSize(path);
-  const {page, pageSize} = await currentPage();
-  const corners = await loadDefaultCorners();
+  const cp = await currentPage();
+  const {page, pageSize} = cp;
+  const {corners, imagesLayer} = await loadSettings();
   const rect = centeredRect(pageSize, size, PLACED_WIDTH);
 
   // Big photos make the note slow: hand the note only the pixels it can show.
@@ -111,18 +113,29 @@ export async function insertPicture(path: string, render: RenderFn, onStage: OnS
   }
 
   onStage({from: 0.4, to: 0.9, label});
-  // Main layer. A layer of its own was tried (b27): the template still shows
-  // through pictures on any layer, so it only added a layer to every page.
-  const el = await call<any>('createElement', PluginCommAPI.createElement(PICTURE));
-  el.pageNum = page;
-  el.layerNum = 0;
-  el.userData = userData;
-  el.picture = {picturePath, rect};
-  await call('insertPageElements', PluginCommAPI.insertPageElements([el], page, null));
+  const add = async (layer: number) => {
+    const el = await call<any>('createElement', PluginCommAPI.createElement(PICTURE));
+    el.pageNum = page;
+    el.layerNum = layer;
+    el.userData = userData;
+    el.picture = {picturePath, rect};
+    await call('insertPageElements', PluginCommAPI.insertPageElements([el], page, layer));
+  };
+  let layer = imagesLayer ? await pictureLayer(cp) : MAIN_LAYER;
+  try {
+    await add(layer);
+  } catch (e) {
+    if (layer === MAIN_LAYER) {
+      throw e;
+    }
+    log(`insert on layer ${layer} failed (${e}); using the main layer`);
+    layer = MAIN_LAYER;
+    await add(layer);
+  }
   onStage({from: 0.9, to: 1, label});
   // Leave it selected: the user can move/resize it, or use Crop / Rotate.
   await call('lassoElements', PluginCommAPI.lassoElements(padRect(rect, 4, pageSize)));
-  return `inserted ${size.width}×${size.height} at ${fmt(rect)}, corners ${corners}`;
+  return `inserted ${size.width}×${size.height} at ${fmt(rect)} on layer ${layer}, corners ${corners}`;
 }
 
 /**
