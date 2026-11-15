@@ -1,6 +1,6 @@
 # Image Placer 1.0.0: launch kit
 
-Texts ready to paste. Replace `<…>` placeholders once the release exists.
+Texts ready to paste. The GitHub release (A) is published.
 
 ---
 
@@ -53,7 +53,7 @@ I wanted to drop images into my regular notes, so I built **Image Placer**.
 - Large photos are scaled down to their on-page size so notes stay fast.
 
 **Install:** download the `.snplg` from the release, copy it to **MyStyle**, then Settings → Apps → Plugins → Add Plugin.
-Release: <link to GitHub release>
+Release: https://github.com/82deg/supernote-plugins/releases/tag/image-placer-v1.0.0
 
 **Permissions:** file read/write only. Fully offline, no network access, and it never changes or deletes your files. Source is public (MIT).
 
@@ -78,7 +78,7 @@ Hi! Could you add Image Placer to the List of ALL Available Plugins?
 - Creator: 82deg (GitHub: 82deg)
 - Plugin: Image Placer — add pictures to notes; crop (with ratio presets), round corners and rotate them from the lasso menu
 - Repo: https://github.com/82deg/supernote-plugins/tree/main/ImagePlacer
-- Download: <link to GitHub release>
+- Download: https://github.com/82deg/supernote-plugins/releases/tag/image-placer-v1.0.0
 - Version: 1.0.0
 - Permissions-compatible: yes (FILE:READ + FILE:WRITE only, no network)
 
