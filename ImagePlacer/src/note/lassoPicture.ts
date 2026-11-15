@@ -161,6 +161,14 @@ async function replaceLassoPicture(
     await call('deleteLassoElements', PluginCommAPI.deleteLassoElements());
   }
   onStage({from: mid, to, label});
+  // The lasso keeps drawing what it selected, so the old picture stayed on
+  // screen until deselected (b28). Drop the old selection, as tapping away
+  // does, then select the new picture.
+  try {
+    await call('setLassoBoxState', PluginCommAPI.setLassoBoxState(2));
+  } catch (e) {
+    log(`clearing the old selection failed (${e})`);
+  }
   await call('lassoElements', PluginCommAPI.lassoElements(padRect(rect, 4, sel.pageSize)));
 }
 
