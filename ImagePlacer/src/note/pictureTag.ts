@@ -19,6 +19,10 @@ export interface PictureTag {
   e: Edges;
   /** Rounded corners; absent means none. */
   r?: Corners;
+  /** Border code (see image/border.ts); absent means none. */
+  d?: string;
+  /** Border insets as shares of the picture: [left, top, right, bottom]. */
+  i?: [number, number, number, number];
 }
 
 export function encodeTag(tag: Omit<PictureTag, 'v'>): string {
@@ -28,6 +32,23 @@ export function encodeTag(tag: Omit<PictureTag, 'v'>): string {
 function isEdges(e: unknown): e is Edges {
   return !!e && ['left', 'top', 'right', 'bottom'].every(k => typeof (e as Record<string, unknown>)[k] === 'number');
 }
+
+function isInsets(i: unknown): boolean {
+  return (
+    Array.isArray(i) &&
+    i.length === 4 &&
+    i.every(v => typeof v === 'number' && v >= 0) &&
+    i[0] + i[2] < 0.9 &&
+    i[1] + i[3] < 0.9
+  );
+}
+
+/** Tag insets → fractions (and back, rounded to keep the tag short). */
+export const tagFractions = (i: PictureTag['i']) => (i ? {l: i[0], t: i[1], r: i[2], b: i[3]} : undefined);
+export const fractionsTag = (f: {l: number; t: number; r: number; b: number}): PictureTag['i'] => {
+  const q = (v: number) => Math.round(v * 10000) / 10000;
+  return f.l || f.t || f.r || f.b ? [q(f.l), q(f.t), q(f.r), q(f.b)] : undefined;
+};
 
 export function decodeTag(userData: unknown): PictureTag | null {
   if (typeof userData !== 'string' || !userData.startsWith(TAG_PREFIX)) {
@@ -44,7 +65,9 @@ export function decodeTag(userData: unknown): PictureTag | null {
       t.h > 0 &&
       isEdges(t.e) &&
       (t.b === undefined || isEdges(t.b)) &&
-      (t.r === undefined || isCorners(t.r));
+      (t.r === undefined || isCorners(t.r)) &&
+      (t.d === undefined || typeof t.d === 'string') &&
+      (t.i === undefined || isInsets(t.i));
     return ok ? (t as PictureTag) : null;
   } catch {
     return null;

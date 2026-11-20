@@ -66,3 +66,47 @@ export function padRect(r: Rect, pad: number, page: Size): Rect {
     bottom: Math.min(page.height, r.bottom + pad),
   };
 }
+
+/** Insets as shares of a rect's width (l, r) and height (t, b). */
+export interface Fractions {
+  l: number;
+  t: number;
+  r: number;
+  b: number;
+}
+
+/**
+ * The photo inside a picture that has a border: strip the border's share on
+ * each side. Shares, not pixels, so it still fits after a lasso resize.
+ */
+export function photoRect(rect: Rect, f: Fractions | undefined): Rect {
+  if (!f) {
+    return rect;
+  }
+  const w = rect.right - rect.left;
+  const h = rect.bottom - rect.top;
+  return {left: rect.left + f.l * w, top: rect.top + f.t * h, right: rect.right - f.r * w, bottom: rect.bottom - f.b * h};
+}
+
+/**
+ * The picture rect for a photo plus its border insets (page px), kept on the
+ * page: moved inside it, and shrunk evenly (never stretched) if too big.
+ */
+export function frameRect(photo: Rect, insets: {l: number; t: number; r: number; b: number}, page: Size): Rect {
+  let left = photo.left - insets.l;
+  let top = photo.top - insets.t;
+  let w = photo.right - photo.left + insets.l + insets.r;
+  let h = photo.bottom - photo.top + insets.t + insets.b;
+  const fit = Math.min(1, page.width / w, page.height / h);
+  if (fit < 1) {
+    const cx = left + w / 2;
+    const cy = top + h / 2;
+    w *= fit;
+    h *= fit;
+    left = cx - w / 2;
+    top = cy - h / 2;
+  }
+  left = Math.min(Math.max(0, left), page.width - w);
+  top = Math.min(Math.max(0, top), page.height - h);
+  return roundRect({left, top, right: left + w, bottom: top + h});
+}

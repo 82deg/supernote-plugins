@@ -10,15 +10,21 @@
 //   picture's true bounds (`inner`) inside the render.
 // - The host copies every new image into the note's own store, on insert and
 //   on modify (b24), so our rendered files are throwaway.
+//
+// Every edit (Crop, Rotate, Border) starts from a clean photo: the kept
+// original, or else the selection render with any old border cut away. It then
+// re-renders photo + corners + border in one go and tags the result.
 import {PixelRatio} from 'react-native';
 import {FileUtils, PluginCommAPI} from 'sn-plugin-lib';
 import {call} from '../sdk';
 import {log, fmt} from '../log';
-import {padRect, rotatedRect, type Rect, type Size} from './geometry';
-import {decodeTag, encodeTag, type PictureTag} from './pictureTag';
+import {frameRect, padRect, photoRect, rotatedRect, type Rect, type Size} from './geometry';
+import {decodeTag, encodeTag, fractionsTag, tagFractions, type PictureTag} from './pictureTag';
 import {croppedPlacement, originalPlacement, type Edges} from '../image/crop';
 import {fullCrop, rotatedRegion, type Crop} from '../image/transform';
-import {cornerShare, type Corners} from '../image/corners';
+import {cornerRadius, type Corners} from '../image/corners';
+import {decodeBorder, encodeBorder, frameLayout, insetFractions, NO_BORDER, type Border} from '../image/border';
+import {loadSettings, saveSettings} from '../settings';
 import {originalsDir, outDir} from './pluginDir';
 import {currentPage, imageSize, PICTURE, type CurrentPage} from './page';
 import type {RenderFn} from '../image/RenderStage';
@@ -103,17 +109,121 @@ async function renderSelection(sel: LassoPicture): Promise<SelectionRender> {
   return {path: preview.imagePath, size, rect: p, inner};
 }
 
-/** The kept original for a tagged picture, if it's still there. */
-async function keptOriginal(sel: LassoPicture): Promise<{dir: string; tag: PictureTag} | null> {
-  if (!sel.tag) {
-    return null;
-  }
+/** A clean photo to edit from, and everything the picture has now. */
+export interface Source {
+  path: string;
+  /** File name inside originals/. */
+  name: string;
+  size: Size;
+  /** Usable part of the source (no lasso margin, no old border), source px. */
+  bounds: Edges;
+  /** The crop the picture shows now. */
+  edges: Edges;
+  corners: Corners;
+  border: Border;
+  /** Where the whole source sits on the page, given the photo as it is now. */
+  fullPlacement: Rect;
+}
+
+/**
+ * The kept original if it's still there; otherwise the selection render, with
+ * the lasso margin and any old border cut away, kept as a new original. Either
+ * way every later edit is lossless.
+ */
+async function ensureOriginal(sel: LassoPicture): Promise<Source> {
   const dir = await originalsDir();
-  if (await FileUtils.exists(`${dir}/${sel.tag.o}`)) {
-    return {dir, tag: sel.tag};
+  const tag = sel.tag;
+  const fractions = tagFractions(tag?.i);
+  if (tag && (await FileUtils.exists(`${dir}/${tag.o}`))) {
+    const size = {width: tag.w, height: tag.h};
+    return {
+      path: `${dir}/${tag.o}`,
+      name: tag.o,
+      size,
+      bounds: tag.b ?? {left: 0, top: 0, right: tag.w, bottom: tag.h},
+      edges: tag.e,
+      corners: tag.r ?? 'none',
+      border: decodeBorder(tag.d),
+      fullPlacement: originalPlacement(photoRect(sel.rect, fractions), size, tag.e),
+    };
   }
-  log(`original ${sel.tag.o} is gone; working from the picture as shown`);
-  return null;
+  if (tag) {
+    log(`original ${tag.o} is gone; working from the picture as shown`);
+  }
+  const shown = await renderSelection(sel);
+  const {inner} = shown;
+  const iw = inner.right - inner.left;
+  const ih = inner.bottom - inner.top;
+  const clean = fractions
+    ? {
+        left: inner.left + fractions.l * iw,
+        top: inner.top + fractions.t * ih,
+        right: inner.right - fractions.r * iw,
+        bottom: inner.bottom - fractions.b * ih,
+      }
+    : inner;
+  const name = newOriginalName('png'); // host renders are png
+  if (!(await FileUtils.copyFile(shown.path, `${dir}/${name}`))) {
+    throw new Error(`could not keep the original (${name})`);
+  }
+  await pruneOriginals(dir);
+  return {
+    path: `${dir}/${name}`,
+    name,
+    size: shown.size,
+    bounds: clean,
+    edges: clean,
+    corners: tag?.r ?? 'none',
+    border: tag ? decodeBorder(tag.d) : NO_BORDER,
+    fullPlacement: shown.rect,
+  };
+}
+
+/**
+ * Render `edges` of the source with `corners` and `border`, put it in place of
+ * the selection (the photo stays where it is; a border grows the picture) and
+ * tag it so it can be edited again.
+ */
+async function applyPicture(
+  sel: LassoPicture,
+  src: Source,
+  edges: Edges,
+  corners: Corners,
+  border: Border,
+  render: RenderFn,
+  onStage: OnStage,
+  label: string,
+  span: [number, number],
+): Promise<string> {
+  const pr = PixelRatio.get();
+  const photo = croppedPlacement(src.fullPlacement, src.size, edges);
+  const ps = sizeOf(photo);
+  const radius = cornerRadius(corners, ps, pr);
+  const frame = frameLayout(ps, radius, border, pr); // page px: one dp is `pr` px
+  const rect = frameRect(photo, frame.insets, sel.pageSize);
+  const out = await render({
+    path: src.path,
+    size: src.size,
+    rotation: 0,
+    crop: toCrop(edges),
+    maxSide: Math.max(edges.right - edges.left, edges.bottom - edges.top), // 1:1 with the source
+    cornerRadius: ps.width > 0 ? radius / ps.width : 0,
+    border,
+    borderUnit: ps.width > 0 ? pr / ps.width : 0,
+  });
+  const tag = encodeTag({
+    o: src.name,
+    w: src.size.width,
+    h: src.size.height,
+    b: src.bounds,
+    e: edges,
+    r: corners === 'none' ? undefined : corners,
+    d: border.kind === 'none' ? undefined : encodeBorder(border),
+    i: fractionsTag(insetFractions(frame)),
+  });
+  log(`apply: edges ${fmt(edges)}, ${corners}, ${encodeBorder(border)} → ${out.size.width}×${out.size.height} at ${fmt(rect)}`);
+  await replaceLassoPicture(sel, out.path, rect, tag, onStage, label, span);
+  return `${out.size.width}×${out.size.height} at ${fmt(rect)}`;
 }
 
 /**
@@ -172,119 +282,61 @@ async function replaceLassoPicture(
   await call('lassoElements', PluginCommAPI.lassoElements(padRect(rect, 4, sel.pageSize)));
 }
 
-/** Rotate the lassoed picture(s) a quarter turn, in place. */
+/** Rotate the lassoed picture(s) a quarter turn, in place, keeping crop, corners and border. */
 export async function rotateLassoPicture(
   render: RenderFn,
   rotation: 90 | 270,
   onStage: OnStage = noStage,
 ): Promise<string> {
   const label = 'Rotating the image…';
-  const side = rotation === 90 ? 'right' : 'left';
   onStage({from: 0, to: 0.25, label});
   const sel = await readLassoPicture();
-  const rect = rotatedRect(sel.rect, sel.pageSize);
-  const kept = await keptOriginal(sel);
-  if (kept) {
-    // Turn the kept original too, so the crop and the corners stay editable.
-    const {dir, tag} = kept;
-    onStage({from: 0.25, to: 0.32, label});
-    const size = {width: tag.w, height: tag.h};
-    const ext = extOf(tag.o);
-    const turned = await render({
-      path: `${dir}/${tag.o}`,
-      size,
-      rotation,
-      crop: fullCrop(size, rotation),
-      maxSide: Math.max(size.width, size.height),
-      format: ext,
-      quality: 0.9,
-    });
-    const name = newOriginalName(ext);
-    if (!(await FileUtils.copyFile(turned.path, `${dir}/${name}`))) {
-      throw new Error(`could not keep the turned original (${name})`);
-    }
-    await pruneOriginals(dir);
-    const e = toEdges(rotatedRegion(tag.e, size, rotation));
-    const b = tag.b ? toEdges(rotatedRegion(tag.b, size, rotation)) : undefined;
-    onStage({from: 0.32, to: 0.4, label});
-    const out = await render({
-      path: `${dir}/${name}`,
-      size: turned.size,
-      rotation: 0,
-      crop: toCrop(e),
-      maxSide: Math.max(e.right - e.left, e.bottom - e.top), // 1:1
-      cornerRadius: cornerShare(tag.r ?? 'none', sizeOf(rect), PixelRatio.get()),
-    });
-    const newTag = encodeTag({o: name, w: turned.size.width, h: turned.size.height, b, e, r: tag.r});
-    await replaceLassoPicture(sel, out.path, rect, newTag, onStage, label, [0.4, 1]);
-    return `${side} (from original): ${out.size.width}×${out.size.height} at ${fmt(rect)}`;
-  }
-
-  const shown = await renderSelection(sel);
-  onStage({from: 0.25, to: 0.4, label});
-  const out = await render({
-    path: shown.path,
-    size: shown.size,
+  const src0 = await ensureOriginal(sel);
+  onStage({from: 0.25, to: 0.32, label});
+  // Turn the original itself, so the crop, corners and border stay editable.
+  const ext = extOf(src0.name);
+  const turned = await render({
+    path: src0.path,
+    size: src0.size,
     rotation,
-    crop: rotatedRegion(shown.inner, shown.size, rotation), // drops the lasso margin
-    maxSide: Math.max(shown.size.width, shown.size.height), // page resolution: 1:1
+    crop: fullCrop(src0.size, rotation),
+    maxSide: Math.max(src0.size.width, src0.size.height),
+    format: ext,
+    quality: 0.9,
   });
-  // No original to turn: this starts a fresh picture without crop history.
-  await replaceLassoPicture(sel, out.path, rect, '', onStage, label, [0.4, 1]);
-  return `${side}: ${out.size.width}×${out.size.height} at ${fmt(rect)}`;
+  const dir = await originalsDir();
+  const name = newOriginalName(ext);
+  if (!(await FileUtils.copyFile(turned.path, `${dir}/${name}`))) {
+    throw new Error(`could not keep the turned original (${name})`);
+  }
+  await pruneOriginals(dir);
+  const edges = toEdges(rotatedRegion(src0.edges, src0.size, rotation));
+  const photoNow = croppedPlacement(src0.fullPlacement, src0.size, src0.edges);
+  const photoTurned = rotatedRect(photoNow, sel.pageSize);
+  const src: Source = {
+    path: `${dir}/${name}`,
+    name,
+    size: turned.size,
+    bounds: toEdges(rotatedRegion(src0.bounds, src0.size, rotation)),
+    edges,
+    corners: src0.corners,
+    border: src0.border,
+    fullPlacement: originalPlacement(photoTurned, turned.size, edges),
+  };
+  const done = await applyPicture(sel, src, edges, src.corners, src.border, render, onStage, label, [0.32, 1]);
+  return `${rotation === 90 ? 'right' : 'left'}: ${done}`;
 }
 
 /** Everything the crop screen needs, plus how to put the result back. */
 export interface CropJob {
   sel: LassoPicture;
-  /** Image shown in the crop screen: the kept original if we have one, else the selection render. */
-  sourcePath: string;
-  sourceSize: Size;
-  /** Usable part of the source (excludes the lasso margin). */
-  bounds: Edges;
-  initialEdges?: Edges;
-  /** Corner style the picture has now. */
-  initialCorners: Corners;
-  /** Where the full source image sits on the page. */
-  fullPlacement: Rect;
-  originalName: string;
+  src: Source;
 }
 
 export async function startCropJob(onStage: OnStage = noStage): Promise<CropJob> {
   onStage({from: 0, to: 0.9, label: 'Opening the image…'});
   const sel = await readLassoPicture();
-  const kept = await keptOriginal(sel);
-  if (kept) {
-    const {dir, tag} = kept;
-    const size = {width: tag.w, height: tag.h};
-    return {
-      sel,
-      sourcePath: `${dir}/${tag.o}`,
-      sourceSize: size,
-      bounds: tag.b ?? {left: 0, top: 0, right: tag.w, bottom: tag.h},
-      initialEdges: tag.e,
-      initialCorners: tag.r ?? 'none',
-      fullPlacement: originalPlacement(sel.rect, size, tag.e),
-      originalName: tag.o,
-    };
-  }
-  // First crop: keep the selection render as the original.
-  const shown = await renderSelection(sel);
-  const dir = await originalsDir();
-  const name = newOriginalName('png'); // host renders are png
-  if (!(await FileUtils.copyFile(shown.path, `${dir}/${name}`))) {
-    throw new Error(`could not keep the original (${name})`);
-  }
-  await pruneOriginals(dir);
-  return {
-    sel,
-    sourcePath: `${dir}/${name}`,
-    sourceSize: shown.size,
-    bounds: shown.inner,
-    initialCorners: 'none',
-    fullPlacement: shown.rect,
-    originalName: name,
-  };
+  return {sel, src: await ensureOriginal(sel)};
 }
 
 export async function finishCropJob(
@@ -296,24 +348,45 @@ export async function finishCropJob(
 ): Promise<string> {
   const label = 'Cropping the image…';
   onStage({from: 0, to: 0.2, label});
-  const rect = croppedPlacement(job.fullPlacement, job.sourceSize, edges);
-  const out = await render({
-    path: job.sourcePath,
-    size: job.sourceSize,
-    rotation: 0,
-    crop: toCrop(edges),
-    maxSide: Math.max(edges.right - edges.left, edges.bottom - edges.top), // 1:1 with the original
-    cornerRadius: cornerShare(corners, sizeOf(rect), PixelRatio.get()),
-  });
-  const tag = encodeTag({
-    o: job.originalName,
-    w: job.sourceSize.width,
-    h: job.sourceSize.height,
-    b: job.bounds,
-    e: edges,
-    r: corners === 'none' ? undefined : corners,
-  });
-  log(`crop: edges ${fmt(edges)}, corners ${corners} → ${out.size.width}×${out.size.height} at ${fmt(rect)}`);
-  await replaceLassoPicture(job.sel, out.path, rect, tag, onStage, label, [0.2, 1]);
-  return `cropped to ${out.size.width}×${out.size.height} at ${fmt(rect)}`;
+  const done = await applyPicture(job.sel, job.src, edges, corners, job.src.border, render, onStage, label, [0.2, 1]);
+  return `cropped: ${done}`;
+}
+
+/** The Border screen's input: the clean photo and the border to start from. */
+export interface BorderJob {
+  sel: LassoPicture;
+  src: Source;
+  /** The picture's border, or the last one applied if it has none. */
+  start: Border;
+}
+
+export async function startBorderJob(onStage: OnStage = noStage): Promise<BorderJob> {
+  onStage({from: 0, to: 0.9, label: 'Opening the image…'});
+  const sel = await readLassoPicture();
+  if (sel.elements.length !== 1) {
+    throw new SelectionError('Select one picture at a time to add a border.');
+  }
+  const src = await ensureOriginal(sel);
+  const {lastBorder} = await loadSettings();
+  return {sel, src, start: src.border.kind === 'none' ? lastBorder : src.border};
+}
+
+export async function finishBorderJob(
+  job: BorderJob,
+  border: Border,
+  render: RenderFn,
+  onStage: OnStage = noStage,
+): Promise<string> {
+  const label = 'Adding the border…';
+  onStage({from: 0, to: 0.2, label});
+  const {src} = job;
+  const done = await applyPicture(job.sel, src, src.edges, src.corners, border, render, onStage, label, [0.2, 1]);
+  if (border.kind !== 'none') {
+    try {
+      await saveSettings({...(await loadSettings()), lastBorder: border});
+    } catch (e) {
+      log(`could not remember the border (${e})`);
+    }
+  }
+  return `border ${encodeBorder(border)}: ${done}`;
 }

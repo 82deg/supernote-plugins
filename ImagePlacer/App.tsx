@@ -6,6 +6,7 @@
  * - Lasso "Rotate left / right": turns the selected picture in place.
  * - Lasso "Crop": opens the crop editor (crop + rounded corners), then
  *   replaces the picture in place.
+ * - Lasso "Border": a line or washi tape around the picture, same pattern.
  * - Settings (plugin manager's config button): corners for new pictures.
  * The plugin closes itself when each action is done.
  *
@@ -18,6 +19,7 @@ import {PluginManager} from 'sn-plugin-lib';
 import {log} from './src/log';
 import {onButton} from './src/pendingButton';
 import {
+  BORDER_BUTTON_ID,
   CROP_BUTTON_ID,
   INSERT_BUTTON_ID,
   ROTATE_LEFT_BUTTON_ID,
@@ -28,16 +30,27 @@ import RenderStage, {releaseRenders, type RenderFn} from './src/image/RenderStag
 import {ProgressOverlay, type Stage} from './src/ui/Progress';
 import CropScreen from './src/screens/CropScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import BorderScreen from './src/screens/BorderScreen';
+import type {Border} from './src/image/border';
 import type {Edges} from './src/image/crop';
 import type {Corners} from './src/image/corners';
 import {ensureFileAccess, insertPicture, pickImage} from './src/note/insert';
-import {finishCropJob, rotateLassoPicture, startCropJob, type CropJob} from './src/note/lassoPicture';
+import {
+  finishBorderJob,
+  finishCropJob,
+  rotateLassoPicture,
+  startBorderJob,
+  startCropJob,
+  type BorderJob,
+  type CropJob,
+} from './src/note/lassoPicture';
 
 function App(): React.JSX.Element {
   const render = useRef<RenderFn | null>(null);
   const busy = useRef(false);
   const [progress, setProgress] = useState<Stage | null>(null);
   const [cropJob, setCropJob] = useState<CropJob | null>(null);
+  const [borderJob, setBorderJob] = useState<BorderJob | null>(null);
   const [settings, setSettings] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const onRenderReady = useCallback((fn: RenderFn) => {
@@ -47,6 +60,7 @@ function App(): React.JSX.Element {
   const close = useCallback(async () => {
     setProgress(null);
     setCropJob(null);
+    setBorderJob(null);
     setSettings(false);
     setError(null);
     busy.current = false;
@@ -77,6 +91,7 @@ function App(): React.JSX.Element {
       log(`✗ ${name}: ${msg}`);
       setProgress(null);
       setCropJob(null);
+      setBorderJob(null);
       setError(friendly(msg));
       busy.current = false;
     }
@@ -116,6 +131,23 @@ function App(): React.JSX.Element {
     });
   };
 
+  const border = () =>
+    runAction('border', async () => {
+      const job = await startBorderJob(setProgress);
+      setProgress(null);
+      setBorderJob(job);
+      busy.current = false; // the editor is interactive; Apply runs as its own action
+    });
+
+  const applyBorder = (b: Border) => {
+    const job = borderJob!;
+    setBorderJob(null);
+    runAction('apply border', async () => {
+      log(`✓ ${await finishBorderJob(job, b, render.current!, setProgress)}`);
+      await doneAndClose();
+    });
+  };
+
   // Latest handlers for the button listener (registered once).
   const openSettings = () => {
     if (busy.current) {
@@ -126,8 +158,8 @@ function App(): React.JSX.Element {
     setSettings(true);
   };
 
-  const handlers = useRef({insert, rotate, crop, openSettings});
-  handlers.current = {insert, rotate, crop, openSettings};
+  const handlers = useRef({insert, rotate, crop, border, openSettings});
+  handlers.current = {insert, rotate, crop, border, openSettings};
   useEffect(
     () =>
       onButton(id => {
@@ -140,6 +172,8 @@ function App(): React.JSX.Element {
           handlers.current.rotate(270);
         } else if (id === CROP_BUTTON_ID) {
           handlers.current.crop();
+        } else if (id === BORDER_BUTTON_ID) {
+          handlers.current.border();
         } else if (id === SETTINGS_ID) {
           handlers.current.openSettings();
         }
@@ -158,15 +192,17 @@ function App(): React.JSX.Element {
       <View style={styles.cover}>
         {cropJob ? (
           <CropScreen
-            sourcePath={cropJob.sourcePath}
-            sourceSize={cropJob.sourceSize}
-            bounds={cropJob.bounds}
-            initialEdges={cropJob.initialEdges}
-            initialCorners={cropJob.initialCorners}
-            pageScale={(cropJob.fullPlacement.right - cropJob.fullPlacement.left) / cropJob.sourceSize.width}
+            sourcePath={cropJob.src.path}
+            sourceSize={cropJob.src.size}
+            bounds={cropJob.src.bounds}
+            initialEdges={cropJob.src.edges}
+            initialCorners={cropJob.src.corners}
+            pageScale={(cropJob.src.fullPlacement.right - cropJob.src.fullPlacement.left) / cropJob.src.size.width}
             onDone={applyCrop}
             onCancel={close}
           />
+        ) : borderJob ? (
+          <BorderScreen job={borderJob} onDone={applyBorder} onCancel={close} />
         ) : settings ? (
           <SettingsScreen onDone={close} />
         ) : error ? (

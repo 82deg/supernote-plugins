@@ -13,6 +13,7 @@ import {VERSION_NAME, VERSION_CODE} from './src/version';
 import {setPendingButton} from './src/pendingButton';
 
 import {
+  BORDER_BUTTON_ID,
   CROP_BUTTON_ID,
   INSERT_BUTTON_ID,
   ROTATE_LEFT_BUTTON_ID,
@@ -57,6 +58,14 @@ PluginManager.registerButton(2, ['NOTE'], {
   id: CROP_BUTTON_ID,
   name: 'Crop',
   icon: Image.resolveAssetSource(require('./assets/icons/crop.png')).uri,
+  editDataTypes: [2],
+  showType: 1,
+});
+
+PluginManager.registerButton(2, ['NOTE'], {
+  id: BORDER_BUTTON_ID,
+  name: 'Border',
+  icon: Image.resolveAssetSource(require('./assets/icons/border.png')).uri,
   editDataTypes: [2],
   showType: 1,
 });

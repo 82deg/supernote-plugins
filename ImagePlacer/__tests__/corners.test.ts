@@ -29,16 +29,26 @@ describe('cornerRadius', () => {
 
 describe('settings', () => {
   it('reads settings from folder names', () => {
-    expect(settingsFromNames(['corners-medium'])).toEqual({corners: 'medium', imagesLayer: false});
-    expect(settingsFromNames(['other', 'corners-large', 'images-layer-on'])).toEqual({
+    expect(settingsFromNames(['corners-medium'])).toMatchObject({corners: 'medium', imagesLayer: false});
+    expect(settingsFromNames(['other', 'corners-large', 'images-layer-on'])).toMatchObject({
       corners: 'large',
       imagesLayer: true,
     });
   });
 
   it('falls back to the defaults: square corners, main layer', () => {
-    expect(settingsFromNames([])).toEqual({corners: 'none', imagesLayer: false});
-    expect(settingsFromNames(['corners-huge'])).toEqual({corners: 'none', imagesLayer: false});
+    expect(settingsFromNames([])).toEqual({corners: 'none', imagesLayer: false, lastBorder: {kind: 'none'}});
+    expect(settingsFromNames(['corners-huge'])).toMatchObject({corners: 'none', imagesLayer: false});
+  });
+
+  it('remembers the last border', () => {
+    expect(settingsFromNames(['lastborder-t.stars.slim.corners']).lastBorder).toEqual({
+      kind: 'tape',
+      pattern: 'stars',
+      width: 'slim',
+      placement: 'corners',
+    });
+    expect(settingsFromNames(['lastborder-junk']).lastBorder).toEqual({kind: 'none'});
   });
 
   it('knows its styles', () => {

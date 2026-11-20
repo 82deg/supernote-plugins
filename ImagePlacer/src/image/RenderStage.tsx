@@ -1,11 +1,18 @@
-// Renders one image transform (rotate → crop → scale) into a box and captures
-// it to a PNG with view-shot. Mounted once; jobs are queued imperatively via
+// Renders one image transform (rotate → crop → scale), with rounded corners
+// and a border, and captures it to a PNG with view-shot. Mounted once; jobs are queued imperatively via
 // the `render` function handed to `onReady`.
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {Image, PixelRatio, View} from 'react-native';
+import {PixelRatio, View} from 'react-native';
 import {captureRef, releaseCapture} from 'react-native-view-shot';
 import type {Size} from '../note/geometry';
-import {stageLayout, type Crop, type Rotation, type StageLayout} from './transform';
+import {
+  stageLayout,
+  type Crop,
+  type Rotation,
+  type StageLayout,
+} from './transform';
+import type {Border, FrameLayout} from './border';
+import FramedPicture, {boxFrame} from './FramedPicture';
 
 export interface RenderJob {
   path: string; // absolute file path of the source image
@@ -15,8 +22,12 @@ export interface RenderJob {
   maxSide: number; // longest output side, px
   format?: 'png' | 'jpg'; // jpg for photos (smaller), png for line art / transparency
   quality?: number; // jpg only, 0–1
-  /** Rounded corners: radius as a share of the output width (0 = square). Forces png. */
+  /** Rounded corners: radius as a share of the photo width (0 = square). Forces png. */
   cornerRadius?: number;
+  /** Border around the photo (outside it: the output grows). Forces png. */
+  border?: Border;
+  /** One design dp as a share of the photo width (how big the border is). */
+  borderUnit?: number;
 }
 
 export type RenderFn = (job: RenderJob) => Promise<{path: string; size: Size}>;
@@ -40,18 +51,43 @@ export function releaseRenders(): void {
 interface Pending {
   job: RenderJob;
   layout: StageLayout;
+  radius: number;
+  frame: FrameLayout;
+  /** Final PNG size: the photo output plus the border. */
+  output: Size;
   resolve: (r: {path: string; size: Size}) => void;
   reject: (e: Error) => void;
 }
 
-export default function RenderStage({onReady}: {onReady: (render: RenderFn) => void}): React.JSX.Element | null {
+export default function RenderStage({
+  onReady,
+}: {
+  onReady: (render: RenderFn) => void;
+}): React.JSX.Element | null {
   const boxRef = useRef<View>(null);
   const [pending, setPending] = useState<Pending | null>(null);
 
   const render = useCallback<RenderFn>(
     job =>
       new Promise((resolve, reject) => {
-        const layout = stageLayout(job.size, job.rotation, job.crop, job.maxSide, PixelRatio.get());
+        const layout = stageLayout(
+          job.size,
+          job.rotation,
+          job.crop,
+          job.maxSide,
+          PixelRatio.get(),
+        );
+        const {radius, frame} = boxFrame(
+          layout.box,
+          job.cornerRadius ?? 0,
+          job.border,
+          job.borderUnit ?? 0,
+        );
+        const k = layout.output.width / layout.box.width; // px per box unit
+        const output = {
+          width: Math.round(frame.canvas.width * k),
+          height: Math.round(frame.canvas.height * k),
+        };
         const timer = setTimeout(() => {
           setPending(null);
           reject(new Error('render timed out'));
@@ -59,6 +95,9 @@ export default function RenderStage({onReady}: {onReady: (render: RenderFn) => v
         setPending({
           job,
           layout,
+          radius,
+          frame,
+          output,
           resolve: r => {
             clearTimeout(timer);
             resolve(r);
@@ -79,18 +118,27 @@ export default function RenderStage({onReady}: {onReady: (render: RenderFn) => v
       return;
     }
     try {
-      // One frame for the decoded bitmap to be drawn before capturing.
-      await new Promise(r => setTimeout(r, 150));
+      // One frame for the decoded bitmap (and any tape tiles) to be drawn first.
+      await new Promise(r =>
+        setTimeout(r, pending.frame.tapes.length ? 500 : 150),
+      );
+      const plain =
+        !pending.job.cornerRadius &&
+        pending.frame.canvas.width === pending.layout.box.width &&
+        pending.frame.canvas.height === pending.layout.box.height;
       const uri = await captureRef(boxRef, {
-        // Rounded corners are transparent, and jpg has no transparency.
-        format: pending.job.cornerRadius ? 'png' : pending.job.format ?? 'png',
+        // Corners and borders need transparency, and jpg has none.
+        format: plain ? pending.job.format ?? 'png' : 'png',
         quality: pending.job.quality ?? 0.85,
         result: 'tmpfile',
-        width: pending.layout.output.width,
-        height: pending.layout.output.height,
+        width: pending.output.width,
+        height: pending.output.height,
       });
       captured.push(uri);
-      pending.resolve({path: uri.replace(/^file:\/\//, ''), size: pending.layout.output});
+      pending.resolve({
+        path: uri.replace(/^file:\/\//, ''),
+        size: pending.output,
+      });
     } catch (e) {
       pending.reject(e instanceof Error ? e : new Error(String(e)));
     } finally {
@@ -101,37 +149,21 @@ export default function RenderStage({onReady}: {onReady: (render: RenderFn) => v
   if (!pending) {
     return null;
   }
-  const {layout, job} = pending;
-  const radius = Math.min((job.cornerRadius ?? 0) * layout.box.width, Math.min(layout.box.width, layout.box.height) / 2);
+  const {layout, job, radius, frame} = pending;
   return (
     <View
       ref={boxRef}
       collapsable={false}
-      style={{
-        width: layout.box.width,
-        height: layout.box.height,
-        overflow: 'hidden', // also clips the image to the rounded corners
-        borderRadius: radius,
-        backgroundColor: 'transparent',
-      }}>
-      <Image
-        source={{uri: `file://${job.path}`}}
-        // Android fades new images in over ~300 ms; capturing during the fade
-        // baked a semi-transparent picture into the note (1.0.0 build 19).
-        fadeDuration={0}
+      style={{backgroundColor: 'transparent'}}>
+      <FramedPicture
+        layout={layout}
+        path={job.path}
+        radius={radius}
+        frame={frame}
         onLoad={capture}
-        onError={e => {
-          pending.reject(new Error(`image load failed: ${e.nativeEvent.error}`));
+        onError={message => {
+          pending.reject(new Error(`image load failed: ${message}`));
           setPending(null);
-        }}
-        resizeMode="stretch"
-        style={{
-          position: 'absolute',
-          left: layout.image.left,
-          top: layout.image.top,
-          width: layout.image.width,
-          height: layout.image.height,
-          transform: [{rotate: `${layout.rotation}deg`}],
         }}
       />
     </View>
